@@ -1,57 +1,50 @@
-# qywx-wecom-files
+﻿# qywx-wecom-spring-boot-starter
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
-企业微信通讯录与审批查询工具库（Maven `jar` 模块）。
+企业微信通讯录与审批查询 Spring Boot Starter。
 
 ## 项目说明
 
-`qywx-wecom-files` 是基于 `weixin-java-cp` 的二次封装。
+`qywx-wecom-spring-boot-starter` 是基于 `weixin-java-cp` 的二次封装。
 
-它将常见企业场景做了统一封装，让业务服务可以直接使用稳定 API，而不是频繁直接调用底层 SDK。
+目标是为业务提供稳定的查询 API，避免在业务层直接处理底层 SDK 细节。
 
-本封装提供：
+本 starter 提供：
 
-- 通讯录查询能力：部门、成员查询，以及成员主部门信息补全
-- 审批查询能力：审批单号（`spNo`）查询、审批详情查询、按模板 ID 分组
-- 可直接注入的 Spring 组件（`@Component` / `@Configuration`）
+- 通讯录查询工具（部门、成员）
+- 审批查询工具（分段分页、失败重试、请求限流、失败收集）
+- Spring Boot 自动装配与 `@ConfigurationProperties`
 
-本封装不做：
+本 starter 不做：
 
 - 不替代 `weixin-java-cp`
 - 不覆盖企业微信全部 API
-- 只聚焦当前仓库已实现的查询能力
 
 ## 依赖引入
-
-在业务项目 `pom.xml` 中添加：
 
 ```xml
 <dependency>
     <groupId>org.cy</groupId>
-    <artifactId>qywx-wecom-files</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <artifactId>qywx-wecom-spring-boot-starter</artifactId>
+    <version>1.0.0</version>
 </dependency>
 ```
 
-## 必要配置
-
-在业务项目中配置企业微信参数：
+## 配置项
 
 ```properties
 wx.cp.corp-id=your-corp-id
 wx.cp.corp-secret=your-corp-secret
 wx.cp.agent-id=1000002
-```
 
-## Spring 扫描要求
-
-本库类位于 `org.cy.qywx` 包下，业务项目需要确保扫描该包：
-
-```java
-@SpringBootApplication(scanBasePackages = {"你的业务包", "org.cy.qywx"})
-public class Application {
-}
+# 审批查询可选参数
+wx.cp.approval.segment-days=29
+wx.cp.approval.page-size=100
+wx.cp.approval.max-retry-attempts=3
+wx.cp.approval.retry-backoff-millis=300
+wx.cp.approval.requests-per-second=0
+wx.cp.approval.executor-threads=8
 ```
 
 ## 对外方法
@@ -74,33 +67,10 @@ public class Application {
 - `List<String> getApprovalSpNos(Date startTime, Date endTime)`
 - `List<WxApprovalDetailVO> getApprovalDetails(Date startTime, Date endTime)`
 - `Map<String, List<WxApprovalDetailVO>> getApprovalDetailsGroupByTemplateId(Date startTime, Date endTime)`
-
-## 使用示例
-
-```java
-@Autowired
-private WxContactQueryUtil wxContactQueryUtil;
-
-@Autowired
-private WxApprovalQueryUtil wxApprovalQueryUtil;
-
-@Test
-void demo() throws Exception {
-    List<WxUserVO> users = wxContactQueryUtil.getAllUsers();
-
-    Date start = new Date(System.currentTimeMillis() - 24L * 60 * 60 * 1000);
-    Date end = new Date();
-    List<WxApprovalDetailVO> details = wxApprovalQueryUtil.getApprovalDetails(start, end);
-
-    System.out.println(users.size());
-    System.out.println(details.size());
-}
-```
+- `WxApprovalDetailQueryResult queryApprovalDetails(Date startTime, Date endTime)`
 
 ## 本地构建
 
-在 `QyWxC` 目录执行：
-
 ```bash
-mvn clean install
+mvn clean test
 ```

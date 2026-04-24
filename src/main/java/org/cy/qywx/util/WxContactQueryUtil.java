@@ -6,7 +6,6 @@ import me.chanjar.weixin.cp.bean.WxCpDepart;
 import me.chanjar.weixin.cp.bean.WxCpUser;
 import org.cy.qywx.vo.WxDepartmentVO;
 import org.cy.qywx.vo.WxUserVO;
-import org.springframework.stereotype.Component;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -15,7 +14,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-@Component
 public class WxContactQueryUtil {
 
     private final WxCpService wxCpService;

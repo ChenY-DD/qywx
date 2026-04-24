@@ -1,57 +1,50 @@
-# qywx-wecom-files
+﻿# qywx-wecom-spring-boot-starter
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
-A Maven `jar` utility library for WeCom (WeChat Work) contact and approval queries.
+A Spring Boot Starter for WeCom (WeChat Work) contact and approval querying.
 
 ## Project Overview
 
-`qywx-wecom-files` is a secondary wrapper built on top of `weixin-java-cp`.
+`qywx-wecom-spring-boot-starter` is a secondary wrapper built on top of `weixin-java-cp`.
 
-It standardizes common enterprise operations so business services can use stable APIs instead of calling low-level SDK methods directly.
+It provides stable, business-friendly APIs for common querying scenarios and hides low-level SDK details.
 
-What this wrapper provides:
+What this starter provides:
 
-- Contact querying utilities for departments and users, including main-department enrichment on user data
-- Approval querying utilities for `spNo` retrieval, detail retrieval, and grouping by template ID
-- Spring-friendly components (`@Component` / `@Configuration`) that can be injected directly
+- Contact querying utilities for departments and users
+- Approval querying utilities with segmented paging, retry, rate limiting, and failure collection
+- Spring Boot auto-configuration and `@ConfigurationProperties`
 
-What this wrapper does not do:
+What this starter does not do:
 
 - It does not replace `weixin-java-cp`
 - It does not cover the full WeCom API surface
-- It focuses on the implemented query capabilities in this repository
 
 ## Dependency
-
-Add this dependency to your business project's `pom.xml`:
 
 ```xml
 <dependency>
     <groupId>org.cy</groupId>
-    <artifactId>qywx-wecom-files</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <artifactId>qywx-wecom-spring-boot-starter</artifactId>
+    <version>1.0.0</version>
 </dependency>
 ```
 
 ## Required Configuration
 
-Configure WeCom properties in your business project:
-
 ```properties
 wx.cp.corp-id=your-corp-id
 wx.cp.corp-secret=your-corp-secret
 wx.cp.agent-id=1000002
-```
 
-## Spring Component Scan
-
-Library classes are under `org.cy.qywx`; make sure your app scans this package:
-
-```java
-@SpringBootApplication(scanBasePackages = {"your.business.package", "org.cy.qywx"})
-public class Application {
-}
+# Optional approval query tuning
+wx.cp.approval.segment-days=29
+wx.cp.approval.page-size=100
+wx.cp.approval.max-retry-attempts=3
+wx.cp.approval.retry-backoff-millis=300
+wx.cp.approval.requests-per-second=0
+wx.cp.approval.executor-threads=8
 ```
 
 ## Public APIs
@@ -74,33 +67,10 @@ public class Application {
 - `List<String> getApprovalSpNos(Date startTime, Date endTime)`
 - `List<WxApprovalDetailVO> getApprovalDetails(Date startTime, Date endTime)`
 - `Map<String, List<WxApprovalDetailVO>> getApprovalDetailsGroupByTemplateId(Date startTime, Date endTime)`
-
-## Example
-
-```java
-@Autowired
-private WxContactQueryUtil wxContactQueryUtil;
-
-@Autowired
-private WxApprovalQueryUtil wxApprovalQueryUtil;
-
-@Test
-void demo() throws Exception {
-    List<WxUserVO> users = wxContactQueryUtil.getAllUsers();
-
-    Date start = new Date(System.currentTimeMillis() - 24L * 60 * 60 * 1000);
-    Date end = new Date();
-    List<WxApprovalDetailVO> details = wxApprovalQueryUtil.getApprovalDetails(start, end);
-
-    System.out.println(users.size());
-    System.out.println(details.size());
-}
-```
+- `WxApprovalDetailQueryResult queryApprovalDetails(Date startTime, Date endTime)`
 
 ## Local Build
 
-Run in the `QyWxC` directory:
-
 ```bash
-mvn clean install
+mvn clean test
 ```
