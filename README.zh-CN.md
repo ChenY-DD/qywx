@@ -2,29 +2,29 @@
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
-A Maven `jar` utility library for WeCom (WeChat Work) contact and approval queries.
+企业微信通讯录与审批查询工具库（Maven `jar` 模块）。
 
-## Project Overview
+## 项目说明
 
-`qywx-wecom-files` is a secondary wrapper built on top of `weixin-java-cp`.
+`qywx-wecom-files` 是基于 `weixin-java-cp` 的二次封装。
 
-It standardizes common enterprise operations so business services can use stable APIs instead of calling low-level SDK methods directly.
+它将常见企业场景做了统一封装，让业务服务可以直接使用稳定 API，而不是频繁直接调用底层 SDK。
 
-What this wrapper provides:
+本封装提供：
 
-- Contact querying utilities for departments and users, including main-department enrichment on user data
-- Approval querying utilities for `spNo` retrieval, detail retrieval, and grouping by template ID
-- Spring-friendly components (`@Component` / `@Configuration`) that can be injected directly
+- 通讯录查询能力：部门、成员查询，以及成员主部门信息补全
+- 审批查询能力：审批单号（`spNo`）查询、审批详情查询、按模板 ID 分组
+- 可直接注入的 Spring 组件（`@Component` / `@Configuration`）
 
-What this wrapper does not do:
+本封装不做：
 
-- It does not replace `weixin-java-cp`
-- It does not cover the full WeCom API surface
-- It focuses on the implemented query capabilities in this repository
+- 不替代 `weixin-java-cp`
+- 不覆盖企业微信全部 API
+- 只聚焦当前仓库已实现的查询能力
 
-## Dependency
+## 依赖引入
 
-Add this dependency to your business project's `pom.xml`:
+在业务项目 `pom.xml` 中添加：
 
 ```xml
 <dependency>
@@ -34,9 +34,9 @@ Add this dependency to your business project's `pom.xml`:
 </dependency>
 ```
 
-## Required Configuration
+## 必要配置
 
-Configure WeCom properties in your business project:
+在业务项目中配置企业微信参数：
 
 ```properties
 wx.cp.corp-id=your-corp-id
@@ -44,17 +44,17 @@ wx.cp.corp-secret=your-corp-secret
 wx.cp.agent-id=1000002
 ```
 
-## Spring Component Scan
+## Spring 扫描要求
 
-Library classes are under `org.cy.qywx`; make sure your app scans this package:
+本库类位于 `org.cy.qywx` 包下，业务项目需要确保扫描该包：
 
 ```java
-@SpringBootApplication(scanBasePackages = {"your.business.package", "org.cy.qywx"})
+@SpringBootApplication(scanBasePackages = {"你的业务包", "org.cy.qywx"})
 public class Application {
 }
 ```
 
-## Public APIs
+## 对外方法
 
 ### WxContactQueryUtil
 
@@ -75,7 +75,7 @@ public class Application {
 - `List<WxApprovalDetailVO> getApprovalDetails(Date startTime, Date endTime)`
 - `Map<String, List<WxApprovalDetailVO>> getApprovalDetailsGroupByTemplateId(Date startTime, Date endTime)`
 
-## Example
+## 使用示例
 
 ```java
 @Autowired
@@ -97,9 +97,9 @@ void demo() throws Exception {
 }
 ```
 
-## Local Build
+## 本地构建
 
-Run in the `QyWxC` directory:
+在 `QyWxC` 目录执行：
 
 ```bash
 mvn clean install

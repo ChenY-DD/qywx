@@ -65,8 +65,8 @@
     <distributionManagement>
         <repository>
             <id>github</id>
-            <name>GitHub yuanxm Apache Maven Packages</name>
-            <url>https://maven.pkg.github.com/yuanxm/qywxc</url>
+            <name>GitHub cheny-dd Apache Maven Packages</name>
+            <url>https://maven.pkg.github.com/cheny-dd/qywx</url>
         </repository>
     </distributionManagement>
 
