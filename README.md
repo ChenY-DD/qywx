@@ -47,6 +47,50 @@ wx.cp.approval.requests-per-second=0
 wx.cp.approval.executor-threads=8
 ```
 
+## How To Use
+
+After adding the dependency and configuration, the starter auto-registers these beans:
+
+- `WxCpService`
+- `WxContactQueryUtil`
+- `WxApprovalQueryUtil`
+
+You can inject them directly in your Spring Boot application:
+
+```java
+@Service
+public class DemoService {
+
+    private final WxContactQueryUtil wxContactQueryUtil;
+    private final WxApprovalQueryUtil wxApprovalQueryUtil;
+
+    public DemoService(
+            WxContactQueryUtil wxContactQueryUtil,
+            WxApprovalQueryUtil wxApprovalQueryUtil
+    ) {
+        this.wxContactQueryUtil = wxContactQueryUtil;
+        this.wxApprovalQueryUtil = wxApprovalQueryUtil;
+    }
+
+    public List<WxUserVO> listUsers() throws WxErrorException {
+        return wxContactQueryUtil.getAllUsers();
+    }
+
+    public WxApprovalDetailQueryResult queryApprovals(Date startTime, Date endTime) throws WxErrorException {
+        return wxApprovalQueryUtil.queryApprovalDetails(startTime, endTime);
+    }
+}
+```
+
+Typical usage:
+
+- Use `WxContactQueryUtil` for department and user queries
+- Use `WxApprovalQueryUtil#getApprovalSpNos(...)` when you only need approval numbers
+- Use `WxApprovalQueryUtil#queryApprovalDetails(...)` when you need both successful details and failed records
+- Use `WxApprovalQueryUtil#getApprovalDetailsGroupByTemplateId(...)` when grouping by template is needed
+
+If your application already defines its own `WxCpService` or approval-query executor bean, the starter will back off and use your bean instead.
+
 ## Public APIs
 
 ### WxContactQueryUtil

@@ -47,6 +47,50 @@ wx.cp.approval.requests-per-second=0
 wx.cp.approval.executor-threads=8
 ```
 
+## 如何使用
+
+引入依赖并完成配置后，starter 会自动注册以下 Bean：
+
+- `WxCpService`
+- `WxContactQueryUtil`
+- `WxApprovalQueryUtil`
+
+业务代码里可以直接注入使用：
+
+```java
+@Service
+public class DemoService {
+
+    private final WxContactQueryUtil wxContactQueryUtil;
+    private final WxApprovalQueryUtil wxApprovalQueryUtil;
+
+    public DemoService(
+            WxContactQueryUtil wxContactQueryUtil,
+            WxApprovalQueryUtil wxApprovalQueryUtil
+    ) {
+        this.wxContactQueryUtil = wxContactQueryUtil;
+        this.wxApprovalQueryUtil = wxApprovalQueryUtil;
+    }
+
+    public List<WxUserVO> listUsers() throws WxErrorException {
+        return wxContactQueryUtil.getAllUsers();
+    }
+
+    public WxApprovalDetailQueryResult queryApprovals(Date startTime, Date endTime) throws WxErrorException {
+        return wxApprovalQueryUtil.queryApprovalDetails(startTime, endTime);
+    }
+}
+```
+
+常见使用方式：
+
+- 查询部门、成员时使用 `WxContactQueryUtil`
+- 只需要审批单号时使用 `WxApprovalQueryUtil#getApprovalSpNos(...)`
+- 既要审批详情又要拿到失败记录时使用 `WxApprovalQueryUtil#queryApprovalDetails(...)`
+- 需要按模板分组时使用 `WxApprovalQueryUtil#getApprovalDetailsGroupByTemplateId(...)`
+
+如果业务项目已经自己提供了 `WxCpService` 或审批查询线程池 Bean，starter 会自动让出，直接复用业务侧 Bean。
+
 ## 对外方法
 
 ### WxContactQueryUtil
