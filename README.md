@@ -10,6 +10,12 @@ A Spring Boot Starter for WeCom (WeChat Work) contact and approval querying.
 
 It provides stable, business-friendly APIs for common querying scenarios and hides low-level SDK details.
 
+Code characteristic:
+
+- With only 2 lines of business code, you can query WeCom users, departments, and approvals
+- No SDK assembly code is needed in the business layer
+- Suitable for rapid integration in internal systems, admin platforms, and approval-sync jobs
+
 What this starter provides:
 
 - Contact querying utilities for departments and users
@@ -80,6 +86,18 @@ public class DemoService {
         return wxApprovalQueryUtil.queryApprovalDetails(startTime, endTime);
     }
 }
+```
+
+Minimal examples:
+
+```java
+List<WxUserVO> users = wxContactQueryUtil.getAllUsers();
+List<WxDepartmentVO> departments = wxContactQueryUtil.getAllDepartments();
+```
+
+```java
+WxApprovalDetailQueryResult result = wxApprovalQueryUtil.queryApprovalDetails(startTime, endTime);
+Map<String, List<WxApprovalDetailVO>> grouped = result.groupByTemplateId();
 ```
 
 Typical usage:

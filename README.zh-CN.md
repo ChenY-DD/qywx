@@ -10,6 +10,12 @@
 
 目标是为业务提供稳定的查询 API，避免在业务层直接处理底层 SDK 细节。
 
+代码特点：
+
+- 业务代码只要 2 行，就可以完成企业微信人员、部门、审批查询
+- 业务层不需要再拼装底层 SDK 调用
+- 适合后台系统、内部平台、审批同步任务快速接入
+
 本 starter 提供：
 
 - 通讯录查询工具（部门、成员）
@@ -80,6 +86,18 @@ public class DemoService {
         return wxApprovalQueryUtil.queryApprovalDetails(startTime, endTime);
     }
 }
+```
+
+最小示例：
+
+```java
+List<WxUserVO> users = wxContactQueryUtil.getAllUsers();
+List<WxDepartmentVO> departments = wxContactQueryUtil.getAllDepartments();
+```
+
+```java
+WxApprovalDetailQueryResult result = wxApprovalQueryUtil.queryApprovalDetails(startTime, endTime);
+Map<String, List<WxApprovalDetailVO>> grouped = result.groupByTemplateId();
 ```
 
 常见使用方式：
