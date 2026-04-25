@@ -6,7 +6,7 @@
 
     <groupId>org.cy</groupId>
     <artifactId>qywx-wecom-spring-boot-starter</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.2</version>
     <packaging>jar</packaging>
 
     <name>qywx-wecom-spring-boot-starter</name>
@@ -33,6 +33,11 @@
         <dependency>
             <groupId>com.github.binarywang</groupId>
             <artifactId>weixin-java-cp</artifactId>
+            <version>4.8.2-20260415.094612</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.binarywang</groupId>
+            <artifactId>weixin-java-common</artifactId>
             <version>4.8.2-20260415.094612</version>
         </dependency>
         <dependency>
