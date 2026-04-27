@@ -7,6 +7,9 @@ import me.chanjar.weixin.cp.bean.oa.WxCpApprovalInfo;
 import me.chanjar.weixin.cp.bean.oa.WxCpApprovalInfoQueryFilter;
 import me.chanjar.weixin.cp.bean.oa.WxCpOaApprovalTemplateResult;
 import org.cy.qywx.vo.WxApprovalDetailVO;
+import org.cy.qywx.vo.WxApprovalTemplateVO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -28,6 +31,8 @@ import java.util.stream.Collectors;
  */
 public class WxApprovalQueryUtil {
 
+    private static final Logger log = LoggerFactory.getLogger(WxApprovalQueryUtil.class);
+
     private final WxCpService wxCpService;
     private final Executor detailQueryExecutor;
     private final WxApprovalQueryOptions options;
@@ -44,6 +49,19 @@ public class WxApprovalQueryUtil {
         this.wxCpService = wxCpService;
         this.detailQueryExecutor = detailQueryExecutor;
         this.options = options == null ? WxApprovalQueryOptions.defaults() : options;
+        log.info("WxApprovalQueryUtil initialized with options: segmentDays={}, pageSize={}, maxRetryAttempts={}, retryBackoffMillis={}, requestsPerSecond={}",
+                this.options.segmentDays(), this.options.pageSize(), this.options.maxRetryAttempts(),
+                this.options.retryBackoffMillis(), this.options.requestsPerSecond());
+    }
+
+    @Deprecated(since = "1.0.4", forRemoval = true)
+    public WxApprovalQueryUtil(
+            WxCpService wxCpService,
+            Executor detailQueryExecutor,
+            WxApprovalQueryOptions options,
+            Object ignoredMeterRegistry
+    ) {
+        this(wxCpService, detailQueryExecutor, options);
     }
 
     /**
@@ -80,49 +98,56 @@ public class WxApprovalQueryUtil {
     }
 
     /**
-     * 获取指定时间范围内审批数据涉及到的模板 ID 集合。
+     * 按模板 ID 和日期范围对象查询审批单号。
+     *
+     * @param templateId 模板 ID
+     * @param dateRange 日期范围
+     * @return 审批单号列表
+     */
+    public List<String> getApprovalSpNosByTemplateId(String templateId, WxDateRange dateRange) throws WxErrorException {
+        return getApprovalSpNosByTemplateId(templateId, dateRange.startTime(), dateRange.endTime());
+    }
+
+    /**
+     * 获取指定时间范围内出现过的审批模板列表，包含模板 ID 和模板名称。
      *
      * @param startTime 开始时间
      * @param endTime 结束时间
-     * @return 模板 ID 列表
+     * @return 模板列表
      */
-    public List<String> getTemplateIds(Date startTime, Date endTime) throws WxErrorException {
-        return queryApprovalDetails(startTime, endTime).details().stream()
-                .map(WxApprovalDetailVO::getTemplateId)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
+    public List<WxApprovalTemplateVO> getTemplates(Date startTime, Date endTime) throws WxErrorException {
+        return toTemplateList(queryApprovalDetails(startTime, endTime).details());
     }
 
     /**
-     * 获取指定时间范围内审批数据涉及到的全部模板 ID。
+     * 获取指定日期范围内出现过的审批模板列表，包含模板 ID 和模板名称。
+     *
+     * @param dateRange 日期范围
+     * @return 模板列表
+     */
+    public List<WxApprovalTemplateVO> getTemplates(WxDateRange dateRange) throws WxErrorException {
+        return getTemplates(dateRange.startTime(), dateRange.endTime());
+    }
+
+    /**
+     * 获取指定时间范围内出现过的审批模板映射，key 为模板 ID。
      *
      * @param startTime 开始时间
      * @param endTime 结束时间
-     * @return 模板 ID 列表
+     * @return 模板映射
      */
-    public List<String> getAllTemplateIds(Date startTime, Date endTime) throws WxErrorException {
-        return getTemplateIds(startTime, endTime);
+    public Map<String, WxApprovalTemplateVO> getTemplateMap(Date startTime, Date endTime) throws WxErrorException {
+        return toTemplateMapByTemplates(getTemplates(startTime, endTime));
     }
 
     /**
-     * 获取指定日期范围内审批数据涉及到的模板 ID 集合。
+     * 获取指定日期范围内出现过的审批模板映射，key 为模板 ID。
      *
      * @param dateRange 日期范围
-     * @return 模板 ID 列表
+     * @return 模板映射
      */
-    public List<String> getTemplateIds(WxDateRange dateRange) throws WxErrorException {
-        return getTemplateIds(dateRange.startTime(), dateRange.endTime());
-    }
-
-    /**
-     * 获取指定日期范围内审批数据涉及到的全部模板 ID。
-     *
-     * @param dateRange 日期范围
-     * @return 模板 ID 列表
-     */
-    public List<String> getAllTemplateIds(WxDateRange dateRange) throws WxErrorException {
-        return getTemplateIds(dateRange);
+    public Map<String, WxApprovalTemplateVO> getTemplateMap(WxDateRange dateRange) throws WxErrorException {
+        return getTemplateMap(dateRange.startTime(), dateRange.endTime());
     }
 
     /**
@@ -155,8 +180,12 @@ public class WxApprovalQueryUtil {
      * @return key 为审批单号，value 为模板 ID
      */
     public Map<String, String> getTemplateIdsBySpNos(Collection<String> spNos) throws WxErrorException {
+        SimpleRateLimiter rateLimiter = new SimpleRateLimiter(options.requestsPerSecond());
         Map<String, String> result = new LinkedHashMap<>();
         for (String spNo : normalizeSpNos(spNos)) {
+            if (options.requestsPerSecond() > 0) {
+                rateLimiter.acquire();
+            }
             WxApprovalDetailVO detail = fetchApprovalDetail(spNo);
             result.put(spNo, detail == null ? null : detail.getTemplateId());
         }
@@ -183,6 +212,7 @@ public class WxApprovalQueryUtil {
         Map<String, String> templateIdsBySpNo = getTemplateIdsBySpNos(spNos);
         Map<String, WxCpOaApprovalTemplateResult> templateCache = new LinkedHashMap<>();
         Map<String, WxCpOaApprovalTemplateResult> result = new LinkedHashMap<>();
+        SimpleRateLimiter rateLimiter = new SimpleRateLimiter(options.requestsPerSecond());
 
         try {
             for (Map.Entry<String, String> entry : templateIdsBySpNo.entrySet()) {
@@ -193,6 +223,9 @@ public class WxApprovalQueryUtil {
                 }
                 WxCpOaApprovalTemplateResult templateDetail = templateCache.computeIfAbsent(templateId, key -> {
                     try {
+                        if (options.requestsPerSecond() > 0) {
+                            rateLimiter.acquire();
+                        }
                         return getTemplateDetail(key);
                     } catch (WxErrorException e) {
                         throw new TemplateQueryRuntimeException(e);
@@ -305,9 +338,14 @@ public class WxApprovalQueryUtil {
     ) throws WxErrorException {
         validateTimeRange(startTime, endTime);
 
+        log.debug("Starting approval spNo query: startTime={}, endTime={}, filters={}", startTime, endTime, filters);
+        long queryStartTime = System.currentTimeMillis();
+
+        SimpleRateLimiter rateLimiter = new SimpleRateLimiter(options.requestsPerSecond());
         Set<String> spNos = new LinkedHashSet<>();
         Date segmentStartTime = startTime;
         long segmentMillis = Math.max(1, options.segmentDays()) * 24L * 60 * 60 * 1000L;
+        int totalApiCalls = 0;
 
         while (!segmentStartTime.after(endTime)) {
             Date segmentEndTime = new Date(Math.min(
@@ -316,7 +354,13 @@ public class WxApprovalQueryUtil {
             ));
 
             String cursor = null;
+            int pageCount = 0;
             while (true) {
+                if (options.requestsPerSecond() > 0) {
+                    rateLimiter.acquire();
+                }
+
+                totalApiCalls++;
                 WxCpApprovalInfo approvalInfo = wxCpService.getOaService().getApprovalInfo(
                         segmentStartTime,
                         segmentEndTime,
@@ -334,6 +378,7 @@ public class WxApprovalQueryUtil {
                     break;
                 }
                 cursor = nextCursor;
+                pageCount++;
             }
 
             if (segmentEndTime.equals(endTime)) {
@@ -341,6 +386,10 @@ public class WxApprovalQueryUtil {
             }
             segmentStartTime = new Date(segmentEndTime.getTime() + 1000);
         }
+
+        long queryDuration = System.currentTimeMillis() - queryStartTime;
+        log.info("Approval spNo query completed: totalSpNos={}, totalApiCalls={}, durationMs={}",
+                spNos.size(), totalApiCalls, queryDuration);
 
         return new ArrayList<>(spNos);
     }
@@ -350,11 +399,16 @@ public class WxApprovalQueryUtil {
             Date endTime,
             List<WxCpApprovalInfoQueryFilter> filters
     ) throws WxErrorException {
+        log.debug("Starting approval details query: startTime={}, endTime={}, filters={}", startTime, endTime, filters);
+        long queryStartTime = System.currentTimeMillis();
+
         List<String> spNos = getApprovalSpNos(startTime, endTime, filters);
         if (spNos.isEmpty()) {
+            log.info("No approval spNos found for the given time range");
             return WxApprovalDetailQueryResult.empty();
         }
 
+        log.info("Fetching details for {} approval spNos", spNos.size());
         SimpleRateLimiter rateLimiter = new SimpleRateLimiter(options.requestsPerSecond());
         List<CompletableFuture<DetailQueryOutcome>> futures = spNos.stream()
                 .map(spNo -> CompletableFuture.supplyAsync(
@@ -377,6 +431,15 @@ public class WxApprovalQueryUtil {
             }
         }
 
+        long queryDuration = System.currentTimeMillis() - queryStartTime;
+        log.info("Approval details query completed: totalDetails={}, totalFailures={}, durationMs={}",
+                details.size(), failures.size(), queryDuration);
+
+        if (!failures.isEmpty()) {
+            log.warn("Failed to fetch {} approval details: {}", failures.size(),
+                    failures.stream().map(WxApprovalDetailFetchFailure::spNo).limit(10).toList());
+        }
+
         return new WxApprovalDetailQueryResult(List.copyOf(details), List.copyOf(failures));
     }
 
@@ -387,17 +450,36 @@ public class WxApprovalQueryUtil {
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
                 rateLimiter.acquire();
-                return new DetailQueryOutcome(fetchApprovalDetail(spNo), null);
+                long startTime = System.nanoTime();
+                WxApprovalDetailVO detail = fetchApprovalDetail(spNo);
+                long duration = System.nanoTime() - startTime;
+
+                if (attempt > 1) {
+                    log.debug("Successfully fetched approval detail for spNo={} on attempt {}, durationMs={}",
+                            spNo, attempt, TimeUnit.NANOSECONDS.toMillis(duration));
+                }
+                return new DetailQueryOutcome(detail, null);
             } catch (Throwable throwable) {
                 lastError = unwrap(throwable);
+                log.warn("Failed to fetch approval detail for spNo={}, attempt {}/{}: {}",
+                        spNo, attempt, maxAttempts, lastError.getMessage());
+
                 if (attempt < maxAttempts) {
-                    sleepBackoff(attempt);
+                    long backoffMillis = calculateExponentialBackoff(attempt);
+                    if (backoffMillis > 0) {
+                        log.debug("Retrying after {}ms backoff for spNo={}", backoffMillis, spNo);
+                        LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(backoffMillis));
+                    }
                 }
             }
         }
 
         String errorType = lastError == null ? "UNKNOWN" : lastError.getClass().getSimpleName();
         String errorMessage = lastError == null ? "unknown error" : String.valueOf(lastError.getMessage());
+
+        log.error("Failed to fetch approval detail for spNo={} after {} attempts: {} - {}",
+                spNo, maxAttempts, errorType, errorMessage);
+
         return new DetailQueryOutcome(
                 null,
                 new WxApprovalDetailFetchFailure(spNo, maxAttempts, errorType, errorMessage)
@@ -435,16 +517,56 @@ public class WxApprovalQueryUtil {
         return normalized;
     }
 
+    private List<WxApprovalTemplateVO> toTemplateList(List<WxApprovalDetailVO> details) {
+        return new ArrayList<>(toTemplateMapByDetails(details).values());
+    }
+
+    private Map<String, WxApprovalTemplateVO> toTemplateMapByDetails(List<WxApprovalDetailVO> details) {
+        Map<String, WxApprovalTemplateVO> templateMap = new LinkedHashMap<>();
+        for (WxApprovalDetailVO detail : details) {
+            if (detail == null || detail.getTemplateId() == null || detail.getTemplateId().isBlank()) {
+                continue;
+            }
+            templateMap.computeIfAbsent(detail.getTemplateId(), key -> {
+                WxApprovalTemplateVO template = new WxApprovalTemplateVO();
+                template.setTemplateId(detail.getTemplateId());
+                template.setTemplateName(detail.getSpName());
+                return template;
+            });
+        }
+        return templateMap;
+    }
+
+    private Map<String, WxApprovalTemplateVO> toTemplateMapByTemplates(List<WxApprovalTemplateVO> templates) {
+        Map<String, WxApprovalTemplateVO> templateMap = new LinkedHashMap<>();
+        for (WxApprovalTemplateVO template : templates) {
+            if (template == null || template.getTemplateId() == null || template.getTemplateId().isBlank()) {
+                continue;
+            }
+            templateMap.put(template.getTemplateId(), template);
+        }
+        return templateMap;
+    }
+
     private List<String> toSpNoList(String... spNos) {
         return spNos == null ? List.of() : List.of(spNos);
     }
 
     private void sleepBackoff(int attempt) {
-        long baseBackoff = Math.max(0L, options.retryBackoffMillis());
-        long backoffMillis = baseBackoff * attempt;
+        long backoffMillis = calculateExponentialBackoff(attempt);
         if (backoffMillis > 0) {
             LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(backoffMillis));
         }
+    }
+
+    private long calculateExponentialBackoff(int attempt) {
+        long baseBackoff = Math.max(0L, options.retryBackoffMillis());
+        if (baseBackoff == 0L) {
+            return 0L;
+        }
+        long exponentialBackoff = baseBackoff * (1L << (attempt - 1));
+        long maxBackoff = baseBackoff * 32;
+        return Math.min(exponentialBackoff, maxBackoff);
     }
 
     private Throwable unwrap(Throwable throwable) {
@@ -471,8 +593,11 @@ public class WxApprovalQueryUtil {
     }
 
     private static final class SimpleRateLimiter {
+        private static final Logger log = LoggerFactory.getLogger(SimpleRateLimiter.class);
         private final long intervalNanos;
         private long nextAllowedNanos;
+        private long totalAcquires = 0;
+        private long totalWaitTimeNanos = 0;
 
         private SimpleRateLimiter(double requestsPerSecond) {
             if (requestsPerSecond <= 0D) {
@@ -489,10 +614,18 @@ public class WxApprovalQueryUtil {
             }
             long now = System.nanoTime();
             if (now < nextAllowedNanos) {
-                LockSupport.parkNanos(nextAllowedNanos - now);
+                long waitTime = nextAllowedNanos - now;
+                totalWaitTimeNanos += waitTime;
+                LockSupport.parkNanos(waitTime);
                 now = System.nanoTime();
             }
             nextAllowedNanos = Math.max(nextAllowedNanos, now) + intervalNanos;
+            totalAcquires++;
+
+            if (totalAcquires % 100 == 0) {
+                log.debug("Rate limiter stats: totalAcquires={}, avgWaitTimeMs={}",
+                        totalAcquires, TimeUnit.NANOSECONDS.toMillis(totalWaitTimeNanos / totalAcquires));
+            }
         }
     }
 
@@ -504,4 +637,5 @@ public class WxApprovalQueryUtil {
             this.cause = cause;
         }
     }
+
 }

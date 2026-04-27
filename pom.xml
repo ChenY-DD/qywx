@@ -6,7 +6,7 @@
 
     <groupId>org.cy</groupId>
     <artifactId>qywx-wecom-spring-boot-starter</artifactId>
-    <version>1.0.2</version>
+    <version>1.0.1</version>
     <packaging>jar</packaging>
 
     <name>qywx-wecom-spring-boot-starter</name>
@@ -16,8 +16,53 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <spring-boot.version>3.5.0</spring-boot.version>
+        <spring-boot.version>3.5.1</spring-boot.version>
+        <spring-framework.version>6.2.10</spring-framework.version>
+        <logback.version>1.5.19</logback.version>
+        <jackson.version>2.18.4</jackson.version>
+        <assertj.version>3.27.4</assertj.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Override Spring Framework versions to fix CVE-2025-41242 and CVE-2025-41249 -->
+            <dependency>
+                <groupId>org.springframework</groupId>
+                <artifactId>spring-framework-bom</artifactId>
+                <version>${spring-framework.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Override Logback version to fix CVE-2025-11226, CVE-2026-1225 -->
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-classic</artifactId>
+                <version>${logback.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-core</artifactId>
+                <version>${logback.version}</version>
+            </dependency>
+
+            <!-- Override Jackson version to fix GHSA-72hv-8253-57qq, WS-2026-0003 -->
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Override AssertJ version to fix CVE-2026-24400 -->
+            <dependency>
+                <groupId>org.assertj</groupId>
+                <artifactId>assertj-core</artifactId>
+                <version>${assertj.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <dependency>
@@ -43,7 +88,22 @@
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>
-            <version>1.82</version>
+            <version>1.84</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+            <version>1.14.2</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.16</version>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -74,6 +134,7 @@
                 <version>3.14.1</version>
                 <configuration>
                     <debug>false</debug>
+                    <proc>full</proc>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>

@@ -13,6 +13,12 @@ public class WxApprovalDetailVO implements Serializable {
     private String spStatus;
     private String templateId;
     private Long applyTime;
+    private Long closeTime;
+    private Long closeLoopDurationSeconds;
+    private Long currentDurationSeconds;
+    private Boolean closed;
+    private Boolean createdToday;
+    private Boolean overdueOneDay;
     private String applicantUserId;
     private String applicantPartyId;
     private List<FormItem> formItems;

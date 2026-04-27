@@ -7,6 +7,7 @@ import me.chanjar.weixin.cp.bean.oa.WxCpApprovalInfo;
 import me.chanjar.weixin.cp.bean.oa.WxCpApprovalInfoQueryFilter;
 import me.chanjar.weixin.cp.bean.oa.WxCpOaApprovalTemplateResult;
 import org.cy.qywx.vo.WxApprovalDetailVO;
+import org.cy.qywx.vo.WxApprovalTemplateVO;
 import org.junit.jupiter.api.Test;
 
 import java.util.Date;
@@ -142,6 +143,9 @@ class WxApprovalQueryUtilTest {
         List<WxApprovalDetailVO> details = util.getApprovalDetailsByTemplateId("temp-1", new Date(0), new Date(1000));
         assertEquals(2, details.size());
 
+        List<String> spNos = util.getApprovalSpNosByTemplateId("temp-1", WxDateRangeUtils.custom(new Date(0), new Date(1000)));
+        assertEquals(List.of("sp-1", "sp-2"), spNos);
+
         Map<String, String> templateIdsBySpNo = util.getTemplateIdsBySpNos("sp-1", "sp-2");
         assertEquals("temp-1", templateIdsBySpNo.get("sp-1"));
         assertEquals("temp-2", templateIdsBySpNo.get("sp-2"));
@@ -149,6 +153,37 @@ class WxApprovalQueryUtilTest {
         Map<String, WxCpOaApprovalTemplateResult> templateDetailsBySpNo = util.getTemplateDetailsBySpNos("sp-1", "sp-2");
         assertEquals(template1, templateDetailsBySpNo.get("sp-1"));
         assertEquals(template2, templateDetailsBySpNo.get("sp-2"));
+    }
+
+    @Test
+    void shouldReturnTemplateListAndMap() throws Exception {
+        WxCpService wxCpService = mock(WxCpService.class);
+        WxCpOaService oaService = mock(WxCpOaService.class);
+        when(wxCpService.getOaService()).thenReturn(oaService);
+
+        WxCpApprovalInfo info = new WxCpApprovalInfo();
+        info.setSpNoList(List.of("sp-1", "sp-2", "sp-3"));
+        info.setNewNextCursor(null);
+        when(oaService.getApprovalInfo(any(Date.class), any(Date.class), nullable(String.class), anyInt(), nullable(List.class)))
+                .thenReturn(info);
+
+        when(oaService.getApprovalDetail("sp-1")).thenReturn(createApprovalDetailResult("sp-1", "temp-1", "请假"));
+        when(oaService.getApprovalDetail("sp-2")).thenReturn(createApprovalDetailResult("sp-2", "temp-2", "报销"));
+        when(oaService.getApprovalDetail("sp-3")).thenReturn(createApprovalDetailResult("sp-3", "temp-1", "请假"));
+
+        WxApprovalQueryUtil util = new WxApprovalQueryUtil(
+                wxCpService,
+                DIRECT_EXECUTOR,
+                new WxApprovalQueryOptions(29, 100, 3, 0, 0)
+        );
+
+        List<WxApprovalTemplateVO> templates = util.getTemplates(new Date(0), new Date(1000));
+        Map<String, WxApprovalTemplateVO> templateMap = util.getTemplateMap(new Date(0), new Date(1000));
+
+        assertEquals(2, templates.size());
+        assertEquals("temp-1", templates.get(0).getTemplateId());
+        assertEquals("请假", templates.get(0).getTemplateName());
+        assertEquals("报销", templateMap.get("temp-2").getTemplateName());
     }
 
     @Test
@@ -164,10 +199,15 @@ class WxApprovalQueryUtilTest {
     }
 
     private WxCpApprovalDetailResult createApprovalDetailResult(String spNo, String templateId) {
+        return createApprovalDetailResult(spNo, templateId, null);
+    }
+
+    private WxCpApprovalDetailResult createApprovalDetailResult(String spNo, String templateId, String spName) {
         WxCpApprovalDetailResult detailResult = new WxCpApprovalDetailResult();
         WxCpApprovalDetailResult.WxCpApprovalDetail detail = new WxCpApprovalDetailResult.WxCpApprovalDetail();
         detail.setSpNo(spNo);
         detail.setTemplateId(templateId);
+        detail.setSpName(spName);
         detailResult.setInfo(detail);
         return detailResult;
     }

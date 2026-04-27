@@ -1,6 +1,5 @@
 package org.cy.qywx.util;
 
-
 import me.chanjar.weixin.cp.bean.oa.WxCpApprovalComment;
 import me.chanjar.weixin.cp.bean.oa.WxCpApprovalDetailResult;
 import me.chanjar.weixin.cp.bean.oa.WxCpApprovalRecord;
@@ -9,6 +8,9 @@ import me.chanjar.weixin.cp.bean.oa.applydata.ApplyDataContent;
 import me.chanjar.weixin.cp.bean.oa.applydata.ContentTitle;
 import org.cy.qywx.vo.WxApprovalDetailVO;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -19,10 +21,17 @@ import java.util.stream.Stream;
 
 public final class WxApprovalConverter {
 
+    private static final long ONE_DAY_SECONDS = 24L * 60 * 60;
+    private static final ZoneId DEFAULT_ZONE = ZoneId.systemDefault();
+
     private WxApprovalConverter() {
     }
 
     public static WxApprovalDetailVO from(WxCpApprovalDetailResult detail) {
+        return from(detail, Instant.now().getEpochSecond());
+    }
+
+    static WxApprovalDetailVO from(WxCpApprovalDetailResult detail, long nowEpochSecond) {
         if (detail == null || detail.getInfo() == null) {
             return null;
         }
@@ -43,6 +52,7 @@ public final class WxApprovalConverter {
         vo.setFormItems(convertFormItems(info.getApplyData() == null ? null : info.getApplyData().getContents()));
         vo.setNodes(convertNodes(info.getSpRecords()));
         vo.setComments(convertComments(info.getComments()));
+        fillTimingFields(vo, nowEpochSecond);
         return vo;
     }
 
@@ -59,6 +69,52 @@ public final class WxApprovalConverter {
                         LinkedHashMap::new,
                         Collectors.toList()
                 ));
+    }
+
+    private static void fillTimingFields(WxApprovalDetailVO vo, long nowEpochSecond) {
+        Long applyTime = vo.getApplyTime();
+        if (applyTime == null) {
+            return;
+        }
+
+        boolean closed = isClosed(vo.getSpStatus());
+        Long closeTime = resolveCloseTime(vo);
+        long currentDurationSeconds = Math.max(0L, nowEpochSecond - applyTime);
+
+        vo.setClosed(closed);
+        vo.setCloseTime(closeTime);
+        vo.setCurrentDurationSeconds(currentDurationSeconds);
+        vo.setCreatedToday(isSameLocalDate(applyTime, nowEpochSecond));
+        vo.setOverdueOneDay(currentDurationSeconds > ONE_DAY_SECONDS);
+
+        if (closed && closeTime != null) {
+            vo.setCloseLoopDurationSeconds(Math.max(0L, closeTime - applyTime));
+        }
+    }
+
+    private static boolean isClosed(String spStatus) {
+        return spStatus != null && !"AUDITING".equals(spStatus);
+    }
+
+    private static boolean isSameLocalDate(long firstEpochSecond, long secondEpochSecond) {
+        LocalDate first = Instant.ofEpochSecond(firstEpochSecond).atZone(DEFAULT_ZONE).toLocalDate();
+        LocalDate second = Instant.ofEpochSecond(secondEpochSecond).atZone(DEFAULT_ZONE).toLocalDate();
+        return first.equals(second);
+    }
+
+    private static Long resolveCloseTime(WxApprovalDetailVO vo) {
+        return Stream.concat(
+                        vo.getNodes() == null ? Stream.empty() : vo.getNodes().stream()
+                                .filter(Objects::nonNull)
+                                .flatMap(node -> node.getDetails() == null ? Stream.empty() : node.getDetails().stream())
+                                .map(WxApprovalDetailVO.NodeDetail::getSpTime),
+                        vo.getComments() == null ? Stream.empty() : vo.getComments().stream()
+                                .filter(Objects::nonNull)
+                                .map(WxApprovalDetailVO.CommentItem::getCommentTime)
+                )
+                .filter(Objects::nonNull)
+                .max(Long::compareTo)
+                .orElse(null);
     }
 
     private static List<WxApprovalDetailVO.FormItem> convertFormItems(List<ApplyDataContent> contents) {

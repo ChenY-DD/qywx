@@ -3,6 +3,7 @@ package org.cy.qywx.config;
 import me.chanjar.weixin.cp.api.WxCpService;
 import me.chanjar.weixin.cp.api.impl.WxCpServiceImpl;
 import me.chanjar.weixin.cp.config.impl.WxCpDefaultConfigImpl;
+import org.cy.qywx.util.WxApiClient;
 import org.cy.qywx.util.WxApprovalQueryOptions;
 import org.cy.qywx.util.WxApprovalQueryUtil;
 import org.cy.qywx.util.WxContactQueryUtil;
@@ -50,6 +51,13 @@ public class QywxWecomAutoConfiguration {
     @ConditionalOnBean(WxCpService.class)
     public WxContactQueryUtil wxContactQueryUtil(WxCpService wxCpService) {
         return new WxContactQueryUtil(wxCpService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnBean(WxCpService.class)
+    public WxApiClient wxApiClient(WxCpService wxCpService) {
+        return new WxApiClient(wxCpService);
     }
 
     @Bean

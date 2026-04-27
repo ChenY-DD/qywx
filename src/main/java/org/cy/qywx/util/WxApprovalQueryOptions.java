@@ -8,6 +8,6 @@ public record WxApprovalQueryOptions(
         double requestsPerSecond
 ) {
     public static WxApprovalQueryOptions defaults() {
-        return new WxApprovalQueryOptions(29, 100, 3, 300L, 0D);
+        return new WxApprovalQueryOptions(29, 100, 5, 1000L, 10D);
     }
 }
