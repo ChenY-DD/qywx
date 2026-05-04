@@ -10,6 +10,7 @@ public class WxCpProperties {
     private Integer agentId;
     private ApprovalQuery approval = new ApprovalQuery();
     private Hr hr = new Hr();
+    private Checkin checkin = new Checkin();
 
     public String getCorpId() {
         return corpId;
@@ -49,6 +50,83 @@ public class WxCpProperties {
 
     public void setHr(Hr hr) {
         this.hr = hr;
+    }
+
+    public Checkin getCheckin() {
+        return checkin;
+    }
+
+    public void setCheckin(Checkin checkin) {
+        this.checkin = checkin;
+    }
+
+    /**
+     * 打卡 / 考勤查询调优参数。复用顶层 {@code corpSecret}，因此本嵌套类没有 {@code secret} 字段。
+     *
+     * @author CY
+     * Copyright (c) CY
+     */
+    public static class Checkin {
+        /** 单段最大天数（API 上限 30）。 */
+        private int segmentDays = 30;
+        /** 单批最大 userId 数（API 上限 100）。 */
+        private int userBatchSize = 100;
+        /** 单批次最大重试次数。 */
+        private int maxRetryAttempts = 3;
+        /** 重试初始退避毫秒。 */
+        private long retryBackoffMillis = 500L;
+        /** 全局每秒请求数（&le;0 不限流）。 */
+        private double requestsPerSecond = 0D;
+        /** {@code qywxCheckinExecutor} 线程数。 */
+        private int executorThreads = 8;
+
+        public int getSegmentDays() {
+            return segmentDays;
+        }
+
+        public void setSegmentDays(int segmentDays) {
+            this.segmentDays = segmentDays;
+        }
+
+        public int getUserBatchSize() {
+            return userBatchSize;
+        }
+
+        public void setUserBatchSize(int userBatchSize) {
+            this.userBatchSize = userBatchSize;
+        }
+
+        public int getMaxRetryAttempts() {
+            return maxRetryAttempts;
+        }
+
+        public void setMaxRetryAttempts(int maxRetryAttempts) {
+            this.maxRetryAttempts = maxRetryAttempts;
+        }
+
+        public long getRetryBackoffMillis() {
+            return retryBackoffMillis;
+        }
+
+        public void setRetryBackoffMillis(long retryBackoffMillis) {
+            this.retryBackoffMillis = retryBackoffMillis;
+        }
+
+        public double getRequestsPerSecond() {
+            return requestsPerSecond;
+        }
+
+        public void setRequestsPerSecond(double requestsPerSecond) {
+            this.requestsPerSecond = requestsPerSecond;
+        }
+
+        public int getExecutorThreads() {
+            return executorThreads;
+        }
+
+        public void setExecutorThreads(int executorThreads) {
+            this.executorThreads = executorThreads;
+        }
     }
 
     /**

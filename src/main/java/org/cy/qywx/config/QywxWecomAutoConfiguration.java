@@ -6,6 +6,8 @@ import me.chanjar.weixin.cp.config.impl.WxCpDefaultConfigImpl;
 import org.cy.qywx.util.WxApiClient;
 import org.cy.qywx.util.WxApprovalQueryOptions;
 import org.cy.qywx.util.WxApprovalQueryUtil;
+import org.cy.qywx.util.WxCheckinQueryOptions;
+import org.cy.qywx.util.WxCheckinQueryUtil;
 import org.cy.qywx.util.WxContactQueryUtil;
 import org.cy.qywx.util.WxHrRosterQueryUtil;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -28,6 +30,7 @@ public class QywxWecomAutoConfiguration {
     public static final String APPROVAL_EXECUTOR_BEAN_NAME = "qywxApprovalQueryExecutor";
     public static final String HR_EXECUTOR_BEAN_NAME = "qywxHrRosterExecutor";
     public static final String HR_CP_SERVICE_BEAN_NAME = "qywxHrCpService";
+    public static final String CHECKIN_EXECUTOR_BEAN_NAME = "qywxCheckinExecutor";
 
     @Bean
     @ConditionalOnMissingBean
@@ -123,5 +126,31 @@ public class QywxWecomAutoConfiguration {
                 hr.getRetryBackoffMillis(),
                 hr.getRequestsPerSecond()
         );
+    }
+
+    @Bean(name = CHECKIN_EXECUTOR_BEAN_NAME, destroyMethod = "shutdown")
+    @ConditionalOnMissingBean(name = CHECKIN_EXECUTOR_BEAN_NAME)
+    public ExecutorService qywxCheckinExecutor(WxCpProperties properties) {
+        int threads = Math.max(1, properties.getCheckin().getExecutorThreads());
+        return Executors.newFixedThreadPool(threads);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnBean(WxCpService.class)
+    public WxCheckinQueryUtil wxCheckinQueryUtil(
+            WxCpService wxCpService,
+            @Qualifier(CHECKIN_EXECUTOR_BEAN_NAME) ExecutorService checkinExecutor,
+            WxCpProperties properties
+    ) {
+        WxCpProperties.Checkin c = properties.getCheckin();
+        WxCheckinQueryOptions options = new WxCheckinQueryOptions(
+                c.getSegmentDays(),
+                c.getUserBatchSize(),
+                c.getMaxRetryAttempts(),
+                c.getRetryBackoffMillis(),
+                c.getRequestsPerSecond()
+        );
+        return new WxCheckinQueryUtil(wxCpService, checkinExecutor, options);
     }
 }
