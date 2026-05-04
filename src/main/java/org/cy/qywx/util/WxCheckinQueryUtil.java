@@ -2,14 +2,22 @@ package org.cy.qywx.util;
 
 import me.chanjar.weixin.common.error.WxErrorException;
 import me.chanjar.weixin.cp.api.WxCpService;
+import me.chanjar.weixin.cp.bean.oa.WxCpCheckinDayData;
 import me.chanjar.weixin.cp.bean.oa.WxCpCropCheckinOption;
+import org.cy.qywx.vo.WxCheckinDayDataVO;
 import org.cy.qywx.vo.WxCheckinGroupVO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
 /**
@@ -57,6 +65,8 @@ public class WxCheckinQueryUtil {
                 this.options.requestsPerSecond());
     }
 
+    // -------------------- getCheckinGroups --------------------
+
     /**
      * 拉取企业全部考勤组配置。
      *
@@ -76,6 +86,173 @@ public class WxCheckinQueryUtil {
             }
         }
         return out;
+    }
+
+    // -------------------- getCheckinDayData --------------------
+
+    /**
+     * 拉取指定 userId 在指定时间范围内的打卡日报。
+     *
+     * @param start   开始时间
+     * @param end     结束时间
+     * @param userIds 用户 ID 集合（内部自动去重 / 分批）
+     * @return 日报查询结果（含成功 + 失败批次）
+     */
+    public WxCheckinDayDataResult getCheckinDayData(Date start, Date end, Collection<String> userIds) {
+        List<String> normalized = normaliseUserIds(userIds);
+        if (normalized.isEmpty()) {
+            return WxCheckinDayDataResult.empty();
+        }
+        validateRange(start, end);
+
+        long t0 = System.currentTimeMillis();
+        List<WxDateRange> segments = segmentDates(start, end, options.segmentDays());
+        List<List<String>> batches = partitionUsers(normalized, options.userBatchSize());
+        List<FanoutTask<List<WxCpCheckinDayData>>> tasks = new ArrayList<>();
+        for (WxDateRange seg : segments) {
+            for (List<String> batch : batches) {
+                tasks.add(new FanoutTask<>(seg, batch,
+                        () -> wxCpService.getOaService().getCheckinDayData(seg.startTime(), seg.endTime(), batch)));
+            }
+        }
+
+        SimpleRateLimiter limiter = new SimpleRateLimiter(options.requestsPerSecond());
+        List<CompletableFuture<FanoutOutcome<List<WxCpCheckinDayData>>>> futures = new ArrayList<>(tasks.size());
+        for (FanoutTask<List<WxCpCheckinDayData>> task : tasks) {
+            futures.add(CompletableFuture.supplyAsync(() -> withRetry(task, limiter), executor));
+        }
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0])).join();
+
+        List<WxCheckinDayDataVO> success = new ArrayList<>();
+        List<WxCheckinFetchFailure> failures = new ArrayList<>();
+        for (CompletableFuture<FanoutOutcome<List<WxCpCheckinDayData>>> f : futures) {
+            FanoutOutcome<List<WxCpCheckinDayData>> o = f.join();
+            if (o.failure() != null) {
+                failures.add(o.failure());
+                continue;
+            }
+            if (o.success() != null) {
+                for (WxCpCheckinDayData d : o.success()) {
+                    WxCheckinDayDataVO vo = WxCheckinConverter.fromDayData(d);
+                    if (vo != null) {
+                        success.add(vo);
+                    }
+                }
+            }
+        }
+
+        log.info("Checkin day data query: tasks={}, success={}, failures={}, durationMs={}",
+                tasks.size(), success.size(), failures.size(), System.currentTimeMillis() - t0);
+        return new WxCheckinDayDataResult(List.copyOf(success), List.copyOf(failures));
+    }
+
+    /**
+     * {@link WxDateRange} 重载。
+     *
+     * @param range   时间范围
+     * @param userIds 用户 ID 集合
+     * @return 日报查询结果
+     */
+    public WxCheckinDayDataResult getCheckinDayData(WxDateRange range, Collection<String> userIds) {
+        return getCheckinDayData(range.startTime(), range.endTime(), userIds);
+    }
+
+    // -------------------- fan-out 引擎 --------------------
+
+    private static List<String> normaliseUserIds(Collection<String> in) {
+        if (in == null || in.isEmpty()) {
+            return List.of();
+        }
+        return in.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .toList();
+    }
+
+    private static void validateRange(Date start, Date end) {
+        if (start == null || end == null) {
+            throw new IllegalArgumentException("start and end must not be null");
+        }
+        if (start.after(end)) {
+            throw new IllegalArgumentException("start must not be after end");
+        }
+    }
+
+    private static List<WxDateRange> segmentDates(Date start, Date end, int days) {
+        int safeDays = Math.max(1, days);
+        long stepMillis = safeDays * 86_400_000L;
+        List<WxDateRange> out = new ArrayList<>();
+        Date cursor = start;
+        while (!cursor.after(end)) {
+            Date segEnd = new Date(Math.min(cursor.getTime() + stepMillis, end.getTime()));
+            out.add(new WxDateRange(cursor, segEnd));
+            if (segEnd.equals(end)) {
+                break;
+            }
+            cursor = new Date(segEnd.getTime() + 1000L);
+        }
+        return out;
+    }
+
+    private static List<List<String>> partitionUsers(List<String> userIds, int batchSize) {
+        int safe = Math.max(1, batchSize);
+        List<List<String>> out = new ArrayList<>();
+        for (int i = 0; i < userIds.size(); i += safe) {
+            out.add(List.copyOf(userIds.subList(i, Math.min(i + safe, userIds.size()))));
+        }
+        return out;
+    }
+
+    private <T> FanoutOutcome<T> withRetry(FanoutTask<T> task, SimpleRateLimiter limiter) {
+        int max = Math.max(1, options.maxRetryAttempts());
+        Throwable last = null;
+        for (int attempt = 1; attempt <= max; attempt++) {
+            try {
+                limiter.acquire();
+                T result = task.callable().call();
+                return new FanoutOutcome<>(result, null);
+            } catch (Throwable t) {
+                last = unwrap(t);
+                log.warn("Checkin batch failed: range=[{},{}], users={}, attempt={}/{}, error={}",
+                        task.range().startTime(), task.range().endTime(), task.userIds().size(),
+                        attempt, max, last.getMessage());
+                if (attempt < max) {
+                    long backoff = exponentialBackoff(attempt);
+                    if (backoff > 0L) {
+                        LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(backoff));
+                    }
+                }
+            }
+        }
+        String type = last == null ? "UNKNOWN" : last.getClass().getSimpleName();
+        String msg = last == null ? "unknown error" : String.valueOf(last.getMessage());
+        return new FanoutOutcome<>(null, new WxCheckinFetchFailure(
+                task.range().startTime(), task.range().endTime(), task.userIds(), max, type, msg));
+    }
+
+    private long exponentialBackoff(int attempt) {
+        long base = Math.max(0L, options.retryBackoffMillis());
+        if (base == 0L) {
+            return 0L;
+        }
+        long backoff = base * (1L << (attempt - 1));
+        return Math.min(backoff, base * 32);
+    }
+
+    private static Throwable unwrap(Throwable t) {
+        Throwable c = t;
+        while (c.getCause() != null && c != c.getCause()) {
+            c = c.getCause();
+        }
+        return c;
+    }
+
+    private record FanoutTask<T>(WxDateRange range, List<String> userIds, Callable<T> callable) {
+    }
+
+    private record FanoutOutcome<T>(T success, WxCheckinFetchFailure failure) {
     }
 
     // -------------------- 内部工具 --------------------
