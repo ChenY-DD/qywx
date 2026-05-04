@@ -16,8 +16,8 @@ public class WxCheckinRangeVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 部门 ID 列表 */
-    private List<Integer> partyIds;
+    /** 部门 ID 列表（企业微信原文为字符串） */
+    private List<String> partyIds;
 
     /** 用户 ID 列表 */
     private List<String> userIds;
