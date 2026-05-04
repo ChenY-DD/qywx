@@ -52,6 +52,13 @@ wx.cp.approval.max-retry-attempts=5
 wx.cp.approval.retry-backoff-millis=1000
 wx.cp.approval.requests-per-second=10
 wx.cp.approval.executor-threads=8
+
+# Optional HR roster (智慧人事 / 人事助手) — requires the dedicated HR app secret
+wx.cp.hr.secret=your-hr-app-secret
+wx.cp.hr.max-retry-attempts=5
+wx.cp.hr.retry-backoff-millis=1000
+wx.cp.hr.requests-per-second=10
+wx.cp.hr.executor-threads=8
 ```
 
 ## How To Use
@@ -62,6 +69,7 @@ After adding the dependency and configuration, the starter auto-registers these 
 - `WxContactQueryUtil`
 - `WxApprovalQueryUtil`
 - `WxApiClient`
+- `WxHrRosterQueryUtil` (only when `wx.cp.hr.secret` is configured)
 
 You can inject them directly in your Spring Boot application:
 
@@ -260,6 +268,42 @@ The `WxApiClient` automatically:
 - Handles HTTP communication
 - Validates response status codes
 - Checks WeCom API error codes (`errcode`)
+
+### WxHrRosterQueryUtil
+
+HR roster (花名册) queries against the 智慧人事 / 人事助手 application. **Requires the dedicated HR app secret** (`wx.cp.hr.secret`); the contact secret cannot access HR endpoints.
+
+- `JsonNode getFieldSetting()` — fetch roster field configuration (`/cgi-bin/hr/get_field_setting`)
+- `JsonNode getStaffInfo(String userId)` — fetch a single employee's roster (`/cgi-bin/hr/get_staff_info`)
+- `WxHrRosterResult getStaffInfoBatch(Collection<String> userIds)` — concurrent batch fetch with rate limiting and exponential backoff retry
+- `WxHrRosterResult getAllStaffInfo()` — fetch the full company roster (resolves user IDs via `WxContactQueryUtil` first, then batch-fetches)
+
+`WxHrRosterResult` exposes:
+- `Map<String, JsonNode> staffInfo()` — successful results keyed by `userId`
+- `List<WxHrRosterFetchFailure> failures()` — per-user failures with attempt count and error info
+
+**Usage Example:**
+
+```java
+@Service
+public class RosterService {
+    private final WxHrRosterQueryUtil wxHrRosterQueryUtil;
+
+    public RosterService(WxHrRosterQueryUtil wxHrRosterQueryUtil) {
+        this.wxHrRosterQueryUtil = wxHrRosterQueryUtil;
+    }
+
+    public WxHrRosterResult fullRoster() throws WxErrorException {
+        return wxHrRosterQueryUtil.getAllStaffInfo();
+    }
+
+    public JsonNode oneEmployee(String userId) throws Exception {
+        return wxHrRosterQueryUtil.getStaffInfo(userId);
+    }
+}
+```
+
+> If you receive `errcode=48002` or `errcode=60011`, verify that the 智慧人事 app is enabled, the configured secret belongs to that app, and the admin has authorized the visible scope.
 
 ## Rate Limiting & Retry Strategy
 

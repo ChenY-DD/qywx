@@ -7,6 +7,7 @@ import org.cy.qywx.util.WxApiClient;
 import org.cy.qywx.util.WxApprovalQueryOptions;
 import org.cy.qywx.util.WxApprovalQueryUtil;
 import org.cy.qywx.util.WxContactQueryUtil;
+import org.cy.qywx.util.WxHrRosterQueryUtil;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -25,6 +26,8 @@ import java.util.concurrent.Executors;
 public class QywxWecomAutoConfiguration {
 
     public static final String APPROVAL_EXECUTOR_BEAN_NAME = "qywxApprovalQueryExecutor";
+    public static final String HR_EXECUTOR_BEAN_NAME = "qywxHrRosterExecutor";
+    public static final String HR_CP_SERVICE_BEAN_NAME = "qywxHrCpService";
 
     @Bean
     @ConditionalOnMissingBean
@@ -77,5 +80,48 @@ public class QywxWecomAutoConfiguration {
                 approval.getRequestsPerSecond()
         );
         return new WxApprovalQueryUtil(wxCpService, approvalExecutor, options);
+    }
+
+    @Bean(name = HR_CP_SERVICE_BEAN_NAME)
+    @ConditionalOnMissingBean(name = HR_CP_SERVICE_BEAN_NAME)
+    @ConditionalOnProperty(prefix = "wx.cp", name = {"corp-id", "hr.secret"})
+    public WxCpService qywxHrCpService(WxCpProperties properties) {
+        WxCpService service = new WxCpServiceImpl();
+        WxCpDefaultConfigImpl config = new WxCpDefaultConfigImpl();
+        config.setCorpId(properties.getCorpId());
+        config.setCorpSecret(properties.getHr().getSecret());
+        if (properties.getHr().getAgentId() != null) {
+            config.setAgentId(properties.getHr().getAgentId());
+        }
+        service.setWxCpConfigStorage(config);
+        return service;
+    }
+
+    @Bean(name = HR_EXECUTOR_BEAN_NAME, destroyMethod = "shutdown")
+    @ConditionalOnMissingBean(name = HR_EXECUTOR_BEAN_NAME)
+    @ConditionalOnProperty(prefix = "wx.cp", name = {"corp-id", "hr.secret"})
+    public ExecutorService qywxHrRosterExecutor(WxCpProperties properties) {
+        int threads = Math.max(1, properties.getHr().getExecutorThreads());
+        return Executors.newFixedThreadPool(threads);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnBean(name = HR_CP_SERVICE_BEAN_NAME)
+    public WxHrRosterQueryUtil wxHrRosterQueryUtil(
+            @Qualifier(HR_CP_SERVICE_BEAN_NAME) WxCpService hrCpService,
+            WxContactQueryUtil contactQueryUtil,
+            @Qualifier(HR_EXECUTOR_BEAN_NAME) ExecutorService hrExecutor,
+            WxCpProperties properties
+    ) {
+        WxCpProperties.Hr hr = properties.getHr();
+        return new WxHrRosterQueryUtil(
+                hrCpService,
+                contactQueryUtil,
+                hrExecutor,
+                hr.getMaxRetryAttempts(),
+                hr.getRetryBackoffMillis(),
+                hr.getRequestsPerSecond()
+        );
     }
 }
