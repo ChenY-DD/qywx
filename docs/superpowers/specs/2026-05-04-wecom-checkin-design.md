@@ -28,7 +28,7 @@
 复用主 `corp-secret`（与 `WxApprovalQueryUtil` 一致），不像 `WxHrRosterQueryUtil` 那样独立 secret。理由：
 
 - 企业微信"打卡"在"应用管理"里是一个内置应用，但绝大多数自建应用已具备打卡接口权限
-- WxJava 4.8.2 已通过 `WxCpCheckinService` 完整覆盖打卡接口，**无需走 `WxApiClient`**
+- WxJava 4.8.2 通过 `WxCpOaService` 完整覆盖打卡接口（`getCorpCheckinOption` / `getCheckinData` / `getCheckinDayData` / `getCheckinMonthData` / `getCheckinScheduleList` 等方法均挂在 OA service 上，**注意 WxJava 中实际方法名为 `getCropCheckinOption()`，"Crop" 是历史拼写**），**无需走 `WxApiClient`**
 - 减少配置项 —— 用户不再需要单独获取打卡 secret
 
 ### 2.2 与现有模块的关系
@@ -36,7 +36,7 @@
 | 维度 | Approval | HR Roster | **Checkin (新增)** |
 |---|---|---|---|
 | Secret | 主 corp-secret | 独立 hr.secret | 主 corp-secret |
-| HTTP 通道 | WxJava `getOaService()` | `WxApiClient` 直连 | WxJava `getCheckinService()` |
+| HTTP 通道 | WxJava `getOaService()` | `WxApiClient` 直连 | WxJava `getOaService()`（同 Approval） |
 | 线程池 | `qywxApprovalQueryExecutor` | `qywxHrRosterExecutor` | `qywxCheckinExecutor` |
 | 限流 | 内嵌 `SimpleRateLimiter` | 内嵌 `SimpleRateLimiter` | 内嵌 `SimpleRateLimiter` |
 | 重试 | 指数退避 | 指数退避 | 指数退避 |
