@@ -2,18 +2,29 @@ package org.cy.qywx.util;
 
 import me.chanjar.weixin.common.error.WxErrorException;
 import me.chanjar.weixin.cp.api.WxCpService;
+import me.chanjar.weixin.cp.bean.oa.WxCpCheckinData;
 import me.chanjar.weixin.cp.bean.oa.WxCpCheckinDayData;
+import me.chanjar.weixin.cp.bean.oa.WxCpCheckinMonthData;
+import me.chanjar.weixin.cp.bean.oa.WxCpCheckinSchedule;
 import me.chanjar.weixin.cp.bean.oa.WxCpCropCheckinOption;
+import org.cy.qywx.vo.WxAttendanceReportVO;
 import org.cy.qywx.vo.WxCheckinDayDataVO;
+import org.cy.qywx.vo.WxCheckinExceptionItemVO;
 import org.cy.qywx.vo.WxCheckinGroupVO;
+import org.cy.qywx.vo.WxCheckinMonthDataVO;
+import org.cy.qywx.vo.WxCheckinRecordVO;
+import org.cy.qywx.vo.WxCheckinScheduleListItemVO;
+import org.cy.qywx.vo.enums.WxCheckinExceptionTypeEnum;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -23,7 +34,7 @@ import java.util.concurrent.locks.LockSupport;
 /**
  * 企业微信打卡查询工具，覆盖考勤组、原始打卡记录、日报、月报、排班，
  * 并提供「迟到 / 早退 / 缺卡 / 旷工 / 地点异常 / 设备异常」业务语义查询及一站式
- * {@link org.cy.qywx.vo.WxAttendanceReportVO} 报表。
+ * {@link WxAttendanceReportVO} 报表。
  *
  * <p>该工具复用主 {@link WxCpService}（与 {@code WxApprovalQueryUtil} 一致），
  * 通过 {@code wxCpService.getOaService()} 调用 WxJava 暴露的考勤接口；
@@ -88,6 +99,99 @@ public class WxCheckinQueryUtil {
         return out;
     }
 
+    // -------------------- getCheckinRecords --------------------
+
+    /**
+     * 拉取原始打卡记录。
+     *
+     * @param type    打卡类型（{@link #CHECKIN_TYPE_NORMAL} / {@link #CHECKIN_TYPE_OUTSIDE} / {@link #CHECKIN_TYPE_ALL}）
+     * @param start   开始时间
+     * @param end     结束时间
+     * @param userIds 用户 ID 集合
+     * @return 打卡记录查询结果
+     */
+    public WxCheckinRecordResult getCheckinRecords(int type, Date start, Date end, Collection<String> userIds) {
+        List<String> normalized = normaliseUserIds(userIds);
+        if (normalized.isEmpty()) {
+            return WxCheckinRecordResult.empty();
+        }
+        validateRange(start, end);
+
+        long t0 = System.currentTimeMillis();
+        List<WxDateRange> segments = segmentDates(start, end, options.segmentDays());
+        List<List<String>> batches = partitionUsers(normalized, options.userBatchSize());
+        List<FanoutTask<List<WxCpCheckinData>>> tasks = new ArrayList<>();
+        for (WxDateRange seg : segments) {
+            for (List<String> batch : batches) {
+                tasks.add(new FanoutTask<>(seg, batch,
+                        () -> wxCpService.getOaService()
+                                .getCheckinData(type, seg.startTime(), seg.endTime(), batch)));
+            }
+        }
+        SimpleRateLimiter limiter = new SimpleRateLimiter(options.requestsPerSecond());
+        List<CompletableFuture<FanoutOutcome<List<WxCpCheckinData>>>> futures = new ArrayList<>(tasks.size());
+        for (FanoutTask<List<WxCpCheckinData>> task : tasks) {
+            futures.add(CompletableFuture.supplyAsync(() -> withRetry(task, limiter), executor));
+        }
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0])).join();
+
+        List<WxCheckinRecordVO> success = new ArrayList<>();
+        List<WxCheckinFetchFailure> failures = new ArrayList<>();
+        for (CompletableFuture<FanoutOutcome<List<WxCpCheckinData>>> f : futures) {
+            FanoutOutcome<List<WxCpCheckinData>> o = f.join();
+            if (o.failure() != null) {
+                failures.add(o.failure());
+                continue;
+            }
+            if (o.success() != null) {
+                for (WxCpCheckinData d : o.success()) {
+                    WxCheckinRecordVO vo = WxCheckinConverter.fromRecord(d);
+                    if (vo != null) {
+                        success.add(vo);
+                    }
+                }
+            }
+        }
+        log.info("Checkin records query: type={}, tasks={}, success={}, failures={}, durationMs={}",
+                type, tasks.size(), success.size(), failures.size(), System.currentTimeMillis() - t0);
+        return new WxCheckinRecordResult(List.copyOf(success), List.copyOf(failures));
+    }
+
+    /**
+     * {@link #CHECKIN_TYPE_ALL} 默认重载。
+     *
+     * @param start   开始时间
+     * @param end     结束时间
+     * @param userIds 用户 ID 集合
+     * @return 打卡记录查询结果
+     */
+    public WxCheckinRecordResult getCheckinRecords(Date start, Date end, Collection<String> userIds) {
+        return getCheckinRecords(CHECKIN_TYPE_ALL, start, end, userIds);
+    }
+
+    /**
+     * {@link WxDateRange} 重载，type=ALL。
+     *
+     * @param range   时间范围
+     * @param userIds 用户 ID 集合
+     * @return 打卡记录查询结果
+     */
+    public WxCheckinRecordResult getCheckinRecords(WxDateRange range, Collection<String> userIds) {
+        return getCheckinRecords(CHECKIN_TYPE_ALL, range.startTime(), range.endTime(), userIds);
+    }
+
+    /**
+     * {@link WxDateRange} + 指定 type 重载。
+     *
+     * @param type    打卡类型
+     * @param range   时间范围
+     * @param userIds 用户 ID 集合
+     * @return 打卡记录查询结果
+     */
+    public WxCheckinRecordResult getCheckinRecords(int type, WxDateRange range, Collection<String> userIds) {
+        return getCheckinRecords(type, range.startTime(), range.endTime(), userIds);
+    }
+
     // -------------------- getCheckinDayData --------------------
 
     /**
@@ -112,7 +216,8 @@ public class WxCheckinQueryUtil {
         for (WxDateRange seg : segments) {
             for (List<String> batch : batches) {
                 tasks.add(new FanoutTask<>(seg, batch,
-                        () -> wxCpService.getOaService().getCheckinDayData(seg.startTime(), seg.endTime(), batch)));
+                        () -> wxCpService.getOaService()
+                                .getCheckinDayData(seg.startTime(), seg.endTime(), batch)));
             }
         }
 
@@ -155,6 +260,367 @@ public class WxCheckinQueryUtil {
      */
     public WxCheckinDayDataResult getCheckinDayData(WxDateRange range, Collection<String> userIds) {
         return getCheckinDayData(range.startTime(), range.endTime(), userIds);
+    }
+
+    // -------------------- getCheckinMonthData --------------------
+
+    /**
+     * 拉取打卡月报。
+     *
+     * @param start   开始时间
+     * @param end     结束时间
+     * @param userIds 用户 ID 集合
+     * @return 月报查询结果
+     */
+    public WxCheckinMonthDataResult getCheckinMonthData(Date start, Date end, Collection<String> userIds) {
+        List<String> normalized = normaliseUserIds(userIds);
+        if (normalized.isEmpty()) {
+            return WxCheckinMonthDataResult.empty();
+        }
+        validateRange(start, end);
+
+        long t0 = System.currentTimeMillis();
+        List<WxDateRange> segments = segmentDates(start, end, options.segmentDays());
+        List<List<String>> batches = partitionUsers(normalized, options.userBatchSize());
+        List<FanoutTask<List<WxCpCheckinMonthData>>> tasks = new ArrayList<>();
+        for (WxDateRange seg : segments) {
+            for (List<String> batch : batches) {
+                tasks.add(new FanoutTask<>(seg, batch,
+                        () -> wxCpService.getOaService()
+                                .getCheckinMonthData(seg.startTime(), seg.endTime(), batch)));
+            }
+        }
+        SimpleRateLimiter limiter = new SimpleRateLimiter(options.requestsPerSecond());
+        List<CompletableFuture<FanoutOutcome<List<WxCpCheckinMonthData>>>> futures = new ArrayList<>(tasks.size());
+        for (FanoutTask<List<WxCpCheckinMonthData>> task : tasks) {
+            futures.add(CompletableFuture.supplyAsync(() -> withRetry(task, limiter), executor));
+        }
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0])).join();
+
+        List<WxCheckinMonthDataVO> success = new ArrayList<>();
+        List<WxCheckinFetchFailure> failures = new ArrayList<>();
+        for (CompletableFuture<FanoutOutcome<List<WxCpCheckinMonthData>>> f : futures) {
+            FanoutOutcome<List<WxCpCheckinMonthData>> o = f.join();
+            if (o.failure() != null) {
+                failures.add(o.failure());
+                continue;
+            }
+            if (o.success() != null) {
+                for (WxCpCheckinMonthData d : o.success()) {
+                    WxCheckinMonthDataVO vo = WxCheckinConverter.fromMonthData(d);
+                    if (vo != null) {
+                        success.add(vo);
+                    }
+                }
+            }
+        }
+        log.info("Checkin month data query: tasks={}, success={}, failures={}, durationMs={}",
+                tasks.size(), success.size(), failures.size(), System.currentTimeMillis() - t0);
+        return new WxCheckinMonthDataResult(List.copyOf(success), List.copyOf(failures));
+    }
+
+    /**
+     * {@link WxDateRange} 重载。
+     *
+     * @param range   时间范围
+     * @param userIds 用户 ID 集合
+     * @return 月报查询结果
+     */
+    public WxCheckinMonthDataResult getCheckinMonthData(WxDateRange range, Collection<String> userIds) {
+        return getCheckinMonthData(range.startTime(), range.endTime(), userIds);
+    }
+
+    // -------------------- getScheduleList --------------------
+
+    /**
+     * 拉取排班信息。失败的批次仅 WARN 级别日志，不收集到返回值。
+     *
+     * @param start   开始时间
+     * @param end     结束时间
+     * @param userIds 用户 ID 集合
+     * @return 排班列表
+     */
+    public List<WxCheckinScheduleListItemVO> getScheduleList(Date start, Date end, Collection<String> userIds) {
+        List<String> normalized = normaliseUserIds(userIds);
+        if (normalized.isEmpty()) {
+            return List.of();
+        }
+        validateRange(start, end);
+
+        List<WxDateRange> segments = segmentDates(start, end, options.segmentDays());
+        List<List<String>> batches = partitionUsers(normalized, options.userBatchSize());
+        List<FanoutTask<List<WxCpCheckinSchedule>>> tasks = new ArrayList<>();
+        for (WxDateRange seg : segments) {
+            for (List<String> batch : batches) {
+                tasks.add(new FanoutTask<>(seg, batch,
+                        () -> wxCpService.getOaService()
+                                .getCheckinScheduleList(seg.startTime(), seg.endTime(), batch)));
+            }
+        }
+        SimpleRateLimiter limiter = new SimpleRateLimiter(options.requestsPerSecond());
+        List<CompletableFuture<FanoutOutcome<List<WxCpCheckinSchedule>>>> futures = new ArrayList<>(tasks.size());
+        for (FanoutTask<List<WxCpCheckinSchedule>> task : tasks) {
+            futures.add(CompletableFuture.supplyAsync(() -> withRetry(task, limiter), executor));
+        }
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0])).join();
+
+        List<WxCheckinScheduleListItemVO> out = new ArrayList<>();
+        for (CompletableFuture<FanoutOutcome<List<WxCpCheckinSchedule>>> f : futures) {
+            FanoutOutcome<List<WxCpCheckinSchedule>> o = f.join();
+            if (o.failure() != null) {
+                log.warn("Schedule list batch failed: range=[{},{}], users={}, error={}",
+                        o.failure().segmentStart(), o.failure().segmentEnd(),
+                        o.failure().userIdBatch().size(), o.failure().errorMessage());
+                continue;
+            }
+            if (o.success() != null) {
+                for (WxCpCheckinSchedule s : o.success()) {
+                    WxCheckinScheduleListItemVO vo = WxCheckinConverter.fromScheduleItem(s);
+                    if (vo != null) {
+                        out.add(vo);
+                    }
+                }
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /**
+     * {@link WxDateRange} 重载。
+     *
+     * @param range   时间范围
+     * @param userIds 用户 ID 集合
+     * @return 排班列表
+     */
+    public List<WxCheckinScheduleListItemVO> getScheduleList(WxDateRange range, Collection<String> userIds) {
+        return getScheduleList(range.startTime(), range.endTime(), userIds);
+    }
+
+    // -------------------- 业务语义方法 --------------------
+
+    /**
+     * 时段内迟到记录（按 {@code (userId, date)} 粒度展开）。
+     *
+     * @param start   开始时间
+     * @param end     结束时间
+     * @param userIds 用户 ID 集合
+     * @return 迟到记录列表
+     */
+    public List<WxCheckinExceptionItemVO> getLatePersons(Date start, Date end, Collection<String> userIds) {
+        return collectExceptions(start, end, userIds, WxCheckinExceptionTypeEnum.LATE);
+    }
+
+    /**
+     * {@link WxDateRange} 重载。
+     *
+     * @param range   时间范围
+     * @param userIds 用户 ID 集合
+     * @return 迟到记录列表
+     */
+    public List<WxCheckinExceptionItemVO> getLatePersons(WxDateRange range, Collection<String> userIds) {
+        return getLatePersons(range.startTime(), range.endTime(), userIds);
+    }
+
+    /**
+     * 时段内早退记录。
+     *
+     * @param start   开始时间
+     * @param end     结束时间
+     * @param userIds 用户 ID 集合
+     * @return 早退记录列表
+     */
+    public List<WxCheckinExceptionItemVO> getEarlyLeavePersons(Date start, Date end, Collection<String> userIds) {
+        return collectExceptions(start, end, userIds, WxCheckinExceptionTypeEnum.EARLY_LEAVE);
+    }
+
+    /**
+     * {@link WxDateRange} 重载。
+     *
+     * @param range   时间范围
+     * @param userIds 用户 ID 集合
+     * @return 早退记录列表
+     */
+    public List<WxCheckinExceptionItemVO> getEarlyLeavePersons(WxDateRange range, Collection<String> userIds) {
+        return getEarlyLeavePersons(range.startTime(), range.endTime(), userIds);
+    }
+
+    /**
+     * 时段内缺卡记录。
+     *
+     * @param start   开始时间
+     * @param end     结束时间
+     * @param userIds 用户 ID 集合
+     * @return 缺卡记录列表
+     */
+    public List<WxCheckinExceptionItemVO> getMissingCardPersons(Date start, Date end, Collection<String> userIds) {
+        return collectExceptions(start, end, userIds, WxCheckinExceptionTypeEnum.MISSING_CARD);
+    }
+
+    /**
+     * {@link WxDateRange} 重载。
+     *
+     * @param range   时间范围
+     * @param userIds 用户 ID 集合
+     * @return 缺卡记录列表
+     */
+    public List<WxCheckinExceptionItemVO> getMissingCardPersons(WxDateRange range, Collection<String> userIds) {
+        return getMissingCardPersons(range.startTime(), range.endTime(), userIds);
+    }
+
+    /**
+     * 时段内旷工记录。
+     *
+     * @param start   开始时间
+     * @param end     结束时间
+     * @param userIds 用户 ID 集合
+     * @return 旷工记录列表
+     */
+    public List<WxCheckinExceptionItemVO> getAbsentPersons(Date start, Date end, Collection<String> userIds) {
+        return collectExceptions(start, end, userIds, WxCheckinExceptionTypeEnum.ABSENT);
+    }
+
+    /**
+     * {@link WxDateRange} 重载。
+     *
+     * @param range   时间范围
+     * @param userIds 用户 ID 集合
+     * @return 旷工记录列表
+     */
+    public List<WxCheckinExceptionItemVO> getAbsentPersons(WxDateRange range, Collection<String> userIds) {
+        return getAbsentPersons(range.startTime(), range.endTime(), userIds);
+    }
+
+    /**
+     * 时段内地点异常记录。
+     *
+     * @param start   开始时间
+     * @param end     结束时间
+     * @param userIds 用户 ID 集合
+     * @return 地点异常记录列表
+     */
+    public List<WxCheckinExceptionItemVO> getLocationExceptions(Date start, Date end, Collection<String> userIds) {
+        return collectExceptions(start, end, userIds, WxCheckinExceptionTypeEnum.LOCATION_EXCEPTION);
+    }
+
+    /**
+     * {@link WxDateRange} 重载。
+     *
+     * @param range   时间范围
+     * @param userIds 用户 ID 集合
+     * @return 地点异常记录列表
+     */
+    public List<WxCheckinExceptionItemVO> getLocationExceptions(WxDateRange range, Collection<String> userIds) {
+        return getLocationExceptions(range.startTime(), range.endTime(), userIds);
+    }
+
+    /**
+     * 时段内设备异常记录。
+     *
+     * @param start   开始时间
+     * @param end     结束时间
+     * @param userIds 用户 ID 集合
+     * @return 设备异常记录列表
+     */
+    public List<WxCheckinExceptionItemVO> getDeviceExceptions(Date start, Date end, Collection<String> userIds) {
+        return collectExceptions(start, end, userIds, WxCheckinExceptionTypeEnum.DEVICE_EXCEPTION);
+    }
+
+    /**
+     * {@link WxDateRange} 重载。
+     *
+     * @param range   时间范围
+     * @param userIds 用户 ID 集合
+     * @return 设备异常记录列表
+     */
+    public List<WxCheckinExceptionItemVO> getDeviceExceptions(WxDateRange range, Collection<String> userIds) {
+        return getDeviceExceptions(range.startTime(), range.endTime(), userIds);
+    }
+
+    private List<WxCheckinExceptionItemVO> collectExceptions(Date start, Date end,
+                                                             Collection<String> userIds,
+                                                             WxCheckinExceptionTypeEnum filter) {
+        WxCheckinDayDataResult dayResult = getCheckinDayData(start, end, userIds);
+        List<WxCheckinExceptionItemVO> out = new ArrayList<>();
+        for (WxCheckinDayDataVO day : dayResult.dayDataList()) {
+            out.addAll(WxCheckinConverter.explodeExceptions(day, filter));
+        }
+        return List.copyOf(out);
+    }
+
+    // -------------------- getAttendanceReport --------------------
+
+    /**
+     * 一次性聚合考勤报表。底层只调一次 {@code getcheckin_daydata}，按异常类型分桶。
+     *
+     * @param start   开始时间
+     * @param end     结束时间
+     * @param userIds 用户 ID 集合
+     * @return 聚合报表
+     */
+    public WxAttendanceReportVO getAttendanceReport(Date start, Date end, Collection<String> userIds) {
+        List<String> normalized = normaliseUserIds(userIds);
+        WxAttendanceReportVO report = new WxAttendanceReportVO();
+        report.setRange(new WxDateRange(start, end));
+        report.setTotalUsers(normalized.size());
+
+        if (normalized.isEmpty()) {
+            report.setLate(List.of());
+            report.setEarlyLeave(List.of());
+            report.setMissingCard(List.of());
+            report.setAbsent(List.of());
+            report.setLocationException(List.of());
+            report.setDeviceException(List.of());
+            report.setFailures(List.of());
+            report.setReportedUsers(0);
+            return report;
+        }
+
+        WxCheckinDayDataResult dayResult = getCheckinDayData(start, end, normalized);
+
+        List<WxCheckinExceptionItemVO> late = new ArrayList<>();
+        List<WxCheckinExceptionItemVO> earlyLeave = new ArrayList<>();
+        List<WxCheckinExceptionItemVO> missingCard = new ArrayList<>();
+        List<WxCheckinExceptionItemVO> absent = new ArrayList<>();
+        List<WxCheckinExceptionItemVO> locationEx = new ArrayList<>();
+        List<WxCheckinExceptionItemVO> deviceEx = new ArrayList<>();
+        Set<String> reportedUsers = new HashSet<>();
+
+        for (WxCheckinDayDataVO day : dayResult.dayDataList()) {
+            if (day.getUserId() != null) {
+                reportedUsers.add(day.getUserId());
+            }
+            for (WxCheckinExceptionItemVO item : WxCheckinConverter.explodeExceptions(day, null)) {
+                switch (item.getExceptionType()) {
+                    case LATE -> late.add(item);
+                    case EARLY_LEAVE -> earlyLeave.add(item);
+                    case MISSING_CARD -> missingCard.add(item);
+                    case ABSENT -> absent.add(item);
+                    case LOCATION_EXCEPTION -> locationEx.add(item);
+                    case DEVICE_EXCEPTION -> deviceEx.add(item);
+                }
+            }
+        }
+
+        report.setLate(List.copyOf(late));
+        report.setEarlyLeave(List.copyOf(earlyLeave));
+        report.setMissingCard(List.copyOf(missingCard));
+        report.setAbsent(List.copyOf(absent));
+        report.setLocationException(List.copyOf(locationEx));
+        report.setDeviceException(List.copyOf(deviceEx));
+        report.setFailures(dayResult.failures());
+        report.setReportedUsers(reportedUsers.size());
+        return report;
+    }
+
+    /**
+     * {@link WxDateRange} 重载。
+     *
+     * @param range   时间范围
+     * @param userIds 用户 ID 集合
+     * @return 聚合报表
+     */
+    public WxAttendanceReportVO getAttendanceReport(WxDateRange range, Collection<String> userIds) {
+        return getAttendanceReport(range.startTime(), range.endTime(), userIds);
     }
 
     // -------------------- fan-out 引擎 --------------------
