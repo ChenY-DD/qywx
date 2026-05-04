@@ -51,6 +51,7 @@ A WeCom corp issues a separate secret per app. Contact + Approval share one app'
 
 - `WxContactQueryUtil`, `WxApprovalQueryUtil`, `WxApiClient` → primary `WxCpService`
 - `WxHrRosterQueryUtil` → `@Qualifier("qywxHrCpService")`
+- `WxCheckinQueryUtil` → primary `WxCpService` (checkin endpoints live on `WxCpOaService`: `getCheckinData`, `getCheckinDayData`, `getCheckinMonthData`, `getCheckinScheduleList`, `getCropCheckinOption` — note the "Crop" typo is WxJava's)
 
 When adding new utilities, decide which app's API they hit and inject the matching service. If you accidentally call HR endpoints (`/cgi-bin/hr/*`) with the contact secret, WeCom returns `errcode=48002 / 60011`.
 
@@ -65,6 +66,7 @@ Three nested groups, each with its own concurrency knobs:
 Two fixed thread pools are created with `destroyMethod="shutdown"`:
 - `qywxApprovalQueryExecutor` (bean name constant `APPROVAL_EXECUTOR_BEAN_NAME`)
 - `qywxHrRosterExecutor` (bean name constant `HR_EXECUTOR_BEAN_NAME`)
+- `qywxCheckinExecutor` (bean name constant `CHECKIN_EXECUTOR_BEAN_NAME`)
 
 ### Cross-cutting patterns to preserve when editing
 
@@ -73,6 +75,7 @@ Two fixed thread pools are created with `destroyMethod="shutdown"`:
 - **Retries**: each query util implements its own bounded exponential-ish retry (`maxRetryAttempts` × `retryBackoffMillis`). Failures past the cap are collected into `*FetchFailure` records (e.g. `WxApprovalDetailFetchFailure`, `WxHrRosterFetchFailure`) and returned alongside successes in result records (`WxApprovalDetailQueryResult`, `WxHrRosterResult`) — callers get partial results rather than an exception.
 - **VO conversion**: WxJava beans are converted to local `org.cy.qywx.vo.*` VOs via static converters (`WxContactConverter`, `WxApprovalConverter`). Don't leak `me.chanjar.weixin.*` types out of the `util` package.
 - **Department enrichment**: `WxContactQueryUtil` post-processes user lists to fill `departments` and `mainDepartmentName` from a single department-list fetch. Preserve this batching when adding new user-returning methods — don't fetch departments per user.
+- **User batching for ≤100/call APIs**: `WxCheckinQueryUtil` partitions userIds into batches of `userBatchSize` and crosses with date segments (cartesian product → parallel `CompletableFuture`s). When adding new endpoints with similar API limits, reuse the same `partitionUsers` + `segmentDates` helpers instead of re-implementing.
 
 ### Generic HTTP path (`WxApiClient`)
 

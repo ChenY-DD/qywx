@@ -370,6 +370,48 @@ When `MeterRegistry` is available (e.g., with Spring Boot Actuator), the starter
 
 Metrics will be automatically exported to `/actuator/prometheus` endpoint.
 
+## Checkin Query
+
+`WxCheckinQueryUtil` queries WeCom attendance data. It reuses the primary `WxCpService` (no separate secret) and exposes:
+
+- `getCheckinGroups()` — list all attendance group configurations
+- `getCheckinRecords(start, end, userIds)` — raw checkin records (use `CHECKIN_TYPE_NORMAL/OUTSIDE/ALL` for finer control)
+- `getCheckinDayData(start, end, userIds)` — daily report
+- `getCheckinMonthData(start, end, userIds)` — monthly report
+- `getScheduleList(start, end, userIds)` — schedule list
+- Business-level helpers: `getLatePersons / getEarlyLeavePersons / getMissingCardPersons / getAbsentPersons / getLocationExceptions / getDeviceExceptions`
+- One-shot aggregate: `getAttendanceReport(start, end, userIds)` returning all six exception buckets in one API call
+
+The starter hides WeCom's `≤100 userIds / call` and `≤30 days / call` limits via internal 2-D batching with retry and rate-limit knobs under `wx.cp.checkin.*`.
+
+```yaml
+wx.cp:
+  corp-id: ww1234abcd
+  corp-secret: xxx
+  agent-id: 1000001
+  checkin:
+    segment-days: 30
+    user-batch-size: 100
+    requests-per-second: 5
+    executor-threads: 8
+```
+
+```java
+@Autowired
+private WxCheckinQueryUtil checkin;
+
+List<WxCheckinGroupVO> groups = checkin.getCheckinGroups();
+
+WxDateRange april = ...;          // build a 30-day range
+List<String> userIds = ...;        // explicit list — no auto-fetch
+List<WxCheckinExceptionItemVO> late = checkin.getLatePersons(april, userIds);
+
+WxAttendanceReportVO report = checkin.getAttendanceReport(april, userIds);
+report.getLate();
+report.getAbsent();
+report.getFailures();
+```
+
 ## Local Build
 
 ```bash

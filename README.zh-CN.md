@@ -326,6 +326,48 @@ INFO  WxApprovalQueryUtil - Approval details query completed: totalDetails=148, 
 
 指标将自动导出到 `/actuator/prometheus` 端点。
 
+## 考勤查询
+
+`WxCheckinQueryUtil` 用于查询企业微信考勤数据。复用主 `WxCpService`（无需独立 secret），提供以下能力：
+
+- `getCheckinGroups()` —— 拉取企业全部考勤组配置
+- `getCheckinRecords(start, end, userIds)` —— 原始打卡记录（可用 `CHECKIN_TYPE_NORMAL/OUTSIDE/ALL` 控制类型）
+- `getCheckinDayData(start, end, userIds)` —— 日报
+- `getCheckinMonthData(start, end, userIds)` —— 月报
+- `getScheduleList(start, end, userIds)` —— 排班列表
+- 业务语义快捷方法：`getLatePersons / getEarlyLeavePersons / getMissingCardPersons / getAbsentPersons / getLocationExceptions / getDeviceExceptions`
+- 一次性聚合报表：`getAttendanceReport(start, end, userIds)`，单次 API 调用即拿到 6 类异常
+
+starter 内部对企业微信「单次 ≤100 userId、≤30 天」硬限制做透明二维分批，并支持重试 / 限流，参数位于 `wx.cp.checkin.*`。
+
+```yaml
+wx.cp:
+  corp-id: ww1234abcd
+  corp-secret: xxx
+  agent-id: 1000001
+  checkin:
+    segment-days: 30
+    user-batch-size: 100
+    requests-per-second: 5
+    executor-threads: 8
+```
+
+```java
+@Autowired
+private WxCheckinQueryUtil checkin;
+
+List<WxCheckinGroupVO> groups = checkin.getCheckinGroups();
+
+WxDateRange april = ...;          // 构造 30 天范围
+List<String> userIds = ...;        // 显式列表（不自动拉全员）
+List<WxCheckinExceptionItemVO> late = checkin.getLatePersons(april, userIds);
+
+WxAttendanceReportVO report = checkin.getAttendanceReport(april, userIds);
+report.getLate();
+report.getAbsent();
+report.getFailures();
+```
+
 ## 本地构建
 
 ```bash
