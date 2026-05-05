@@ -1,16 +1,16 @@
 package org.cy.qywx.util;
 
 /**
- * 考勤查询参数（线程池由 Spring 注入）。
+ * 记录说明：考勤打卡查询配置选项。
  *
- * @author CY
+ * @param segmentDays 分段天数
+ * @param userBatchSize 成员批次大小
+ * @param maxRetryAttempts 最大重试次数
+ * @param retryBackoffMillis 重试退避毫秒
+ * @param requestsPerSecond 请求每秒
+ *
+ * @author cy
  * Copyright (c) CY
- *
- * @param segmentDays         单段最大天数（API 上限 30）
- * @param userBatchSize       单批最大 userId 数（API 上限 100）
- * @param maxRetryAttempts    单批次最大重试次数
- * @param retryBackoffMillis  重试初始退避毫秒
- * @param requestsPerSecond   全局限流每秒请求数（&lt;=0 表示不限流）
  */
 public record WxCheckinQueryOptions(
         int segmentDays,
@@ -20,9 +20,12 @@ public record WxCheckinQueryOptions(
         double requestsPerSecond
 ) {
     /**
-     * 构造默认参数：30 天 / 段、100 人 / 批、3 次重试、500ms 退避、不限流。
+     * 创建默认查询配置。
      *
-     * @return 默认 options
+     * @return 考勤打卡查询配置选项
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public static WxCheckinQueryOptions defaults() {
         return new WxCheckinQueryOptions(30, 100, 3, 500L, 0D);

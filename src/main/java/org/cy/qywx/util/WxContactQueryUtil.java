@@ -15,21 +15,42 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * 企业微信通讯录查询工具，封装部门、成员及部门信息补全相关能力。
+ * 类说明：contact查询util工具。
+ *
+ * @author cy
+ * Copyright (c) CY
  */
 public class WxContactQueryUtil {
 
+    /**
+     * 字段说明：企业微信企业微信service。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final WxCpService wxCpService;
 
+    /**
+     * 创建 contact查询util工具实例。
+     *
+     * @param wxCpService 企业微信企业微信service
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     public WxContactQueryUtil(WxCpService wxCpService) {
         this.wxCpService = wxCpService;
     }
 
     /**
-     * 查询指定部门下的部门列表。
+     * 获取部门列表。
      *
-     * @param departmentId 部门 ID，为 null 时查询根部门下的部门
+     * @param departmentId 部门ID
      * @return 部门列表
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxDepartmentVO> getDepartments(Long departmentId) throws WxErrorException {
         List<WxCpDepart> departments = wxCpService.getDepartmentService().list(departmentId);
@@ -40,31 +61,43 @@ public class WxContactQueryUtil {
     }
 
     /**
-     * 查询企业全部部门。
+     * 获取全部部门列表。
      *
-     * @return 部门列表
+     * @return 全部部门列表
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxDepartmentVO> getAllDepartments() throws WxErrorException {
         return getDepartments(null);
     }
 
     /**
-     * 查询单个部门详情。
+     * 获取部门。
      *
-     * @param departmentId 部门 ID
-     * @return 部门详情
+     * @param departmentId 部门ID
+     * @return 部门
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public WxDepartmentVO getDepartment(Long departmentId) throws WxErrorException {
         return WxContactConverter.from(wxCpService.getDepartmentService().get(departmentId));
     }
 
     /**
-     * 按部门查询成员，并自动补全成员所属部门与主部门名称。
+     * 获取成员列表by部门。
      *
-     * @param departmentId 部门 ID
-     * @param fetchChild 是否递归查询子部门
-     * @param status 成员状态
-     * @return 成员列表
+     * @param departmentId 部门ID
+     * @param fetchChild 是否包含子部门成员
+     * @param status 状态
+     * @return 成员列表by部门
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxUserVO> getUsersByDepartment(Long departmentId, boolean fetchChild, Integer status) throws WxErrorException {
         List<WxCpUser> users = wxCpService.getUserService().listByDepartment(departmentId, fetchChild, status);
@@ -76,31 +109,43 @@ public class WxContactQueryUtil {
     }
 
     /**
-     * 查询全部在职成员。
+     * 获取全部成员列表。
      *
-     * @return 成员列表
+     * @return 全部成员列表
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxUserVO> getAllUsers() throws WxErrorException {
         return getUsersByDepartment(1L, true, 0);
     }
 
     /**
-     * 按状态查询全部成员。
+     * 获取全部成员列表。
      *
-     * @param status 成员状态
-     * @return 成员列表
+     * @param status 状态
+     * @return 全部成员列表
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxUserVO> getAllUsers(Integer status) throws WxErrorException {
         return getUsersByDepartment(1L, true, status);
     }
 
     /**
-     * 按部门查询简化成员信息，并自动补全成员所属部门与主部门名称。
+     * 获取成员列表simpleby部门。
      *
-     * @param departmentId 部门 ID
-     * @param fetchChild 是否递归查询子部门
-     * @param status 成员状态
-     * @return 成员列表
+     * @param departmentId 部门ID
+     * @param fetchChild 是否包含子部门成员
+     * @param status 状态
+     * @return 成员列表simpleby部门
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxUserVO> getUsersSimpleByDepartment(Long departmentId, boolean fetchChild, Integer status) throws WxErrorException {
         List<WxCpUser> users = wxCpService.getUserService().listSimpleByDepartment(departmentId, fetchChild, status);
@@ -112,29 +157,41 @@ public class WxContactQueryUtil {
     }
 
     /**
-     * 查询全部在职成员的简化信息。
+     * 获取全部成员列表simple。
      *
-     * @return 成员列表
+     * @return 全部成员列表simple
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxUserVO> getAllUsersSimple() throws WxErrorException {
         return getUsersSimpleByDepartment(1L, true, 0);
     }
 
     /**
-     * 按状态查询全部成员的简化信息。
+     * 获取全部成员列表simple。
      *
-     * @param status 成员状态
-     * @return 成员列表
+     * @param status 状态
+     * @return 全部成员列表simple
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxUserVO> getAllUsersSimple(Integer status) throws WxErrorException {
         return getUsersSimpleByDepartment(1L, true, status);
     }
 
     /**
-     * 根据用户 ID 查询成员详情，并补全主部门与所属部门信息。
+     * 获取成员byID。
      *
      * @param userId 成员 userId
-     * @return 成员详情
+     * @return 成员byID
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public WxUserVO getUserById(String userId) throws WxErrorException {
         WxUserVO user = WxContactConverter.from(wxCpService.getUserService().getById(userId));
@@ -144,17 +201,46 @@ public class WxContactQueryUtil {
         return fillDepartmentInfo(user, getAllDepartments());
     }
 
+    /**
+     * 执行 fillDepartmentInfo 相关逻辑。
+     *
+     * @param users 成员列表
+     * @param departments 部门列表
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<WxUserVO> fillDepartmentInfo(List<WxUserVO> users, List<WxDepartmentVO> departments) {
         Map<Long, WxDepartmentVO> departmentMap = toDepartmentMap(departments);
         users.forEach(user -> fillDepartmentInfo(user, departmentMap));
         return users;
     }
 
+    /**
+     * 执行 fillDepartmentInfo 相关逻辑。
+     *
+     * @param user 成员
+     * @param departments 部门列表
+     * @return 成员业务视图对象
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private WxUserVO fillDepartmentInfo(WxUserVO user, List<WxDepartmentVO> departments) {
         fillDepartmentInfo(user, toDepartmentMap(departments));
         return user;
     }
 
+    /**
+     * 执行 fillDepartmentInfo 相关逻辑。
+     *
+     * @param user 成员
+     * @param departmentMap 部门map
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private void fillDepartmentInfo(WxUserVO user, Map<Long, WxDepartmentVO> departmentMap) {
         if (user == null) {
             return;
@@ -187,6 +273,15 @@ public class WxContactQueryUtil {
         }
     }
 
+    /**
+     * 转换为部门map。
+     *
+     * @param departments 部门列表
+     * @return 部门vo>
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Map<Long, WxDepartmentVO> toDepartmentMap(List<WxDepartmentVO> departments) {
         if (departments == null || departments.isEmpty()) {
             return Collections.emptyMap();
@@ -202,6 +297,15 @@ public class WxContactQueryUtil {
                 ));
     }
 
+    /**
+     * 转换为部门ref。
+     *
+     * @param department 部门
+     * @return 成员vo.departmentref
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private WxUserVO.DepartmentRef toDepartmentRef(WxDepartmentVO department) {
         WxUserVO.DepartmentRef ref = new WxUserVO.DepartmentRef();
         ref.setId(department.getId());

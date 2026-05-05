@@ -1,11 +1,9 @@
 package org.cy.qywx.vo.enums;
 
 /**
- * 打卡记录类型枚举。
- * <p>对应企业微信 {@code getcheckindata} 接口的 {@code opencheckindatatype} 请求参数：
- * 1=上下班打卡、2=外出打卡、3=全部。</p>
+ * 枚举说明：考勤打卡类型??。
  *
- * @author CY
+ * @author cy
  * Copyright (c) CY
  */
 public enum WxCheckinTypeEnum {
@@ -14,7 +12,19 @@ public enum WxCheckinTypeEnum {
     OUTSIDE(2, "外出打卡"),
     ALL(3, "全部");
 
+    /**
+     * 字段说明：编码。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final int code;
+    /**
+     * 字段说明：描述。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final String description;
 
     WxCheckinTypeEnum(int code, String description) {
@@ -23,28 +33,37 @@ public enum WxCheckinTypeEnum {
     }
 
     /**
-     * 获取枚举对应的企业微信 API 数值。
+     * 获取编码。
      *
-     * @return code
+     * @return 编码
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public int getCode() {
         return code;
     }
 
     /**
-     * 获取枚举的中文描述。
+     * 获取描述。
      *
-     * @return 中文说明
+     * @return 描述
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public String getDescription() {
         return description;
     }
 
     /**
-     * 根据企业微信返回的数值反查枚举。
+     * 执行 fromCode 相关逻辑。
      *
-     * @param code 企业微信数值
-     * @return 对应枚举；未匹配返回 {@code null}
+     * @param code 编码
+     * @return 考勤打卡类型??
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public static WxCheckinTypeEnum fromCode(Integer code) {
         if (code == null) {

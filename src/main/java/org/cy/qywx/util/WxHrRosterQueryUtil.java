@@ -28,34 +28,106 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
 /**
- * 企业微信「智慧人事 / 人事助手」花名册查询工具。
- * <p>
- * 该工具调用 {@code /cgi-bin/hr/*} 系列接口，需要使用智慧人事应用的独立 secret，
- * 不能复用通讯录或自建应用的 secret。配置项见 {@code wx.cp.hr.secret}。
- * <p>
- * 若调用返回 {@code errcode=48002 / 60011} 等权限错误，请确认：
- * <ul>
- *     <li>企业已开通「智慧人事」应用</li>
- *     <li>使用的是该应用的专属 secret，而非通讯录 secret</li>
- *     <li>管理员已授权该应用对应的可见范围</li>
- * </ul>
+ * 类说明：HR花名册查询util工具。
+ *
+ * @author cy
+ * Copyright (c) CY
  */
 public class WxHrRosterQueryUtil {
 
+    /**
+     * 字段说明：日志。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static final Logger log = LoggerFactory.getLogger(WxHrRosterQueryUtil.class);
 
+    /**
+     * 字段说明：字段配置URL。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     public static final String FIELD_SETTING_URL = "https://qyapi.weixin.qq.com/cgi-bin/hr/get_field_setting";
+    /**
+     * 字段说明：员工信息URL。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     public static final String STAFF_INFO_URL = "https://qyapi.weixin.qq.com/cgi-bin/hr/get_staff_info";
 
+    /**
+     * 字段说明：HR企业微信service。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final WxCpService hrCpService;
+    /**
+     * 字段说明：contact查询util。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final WxContactQueryUtil contactQueryUtil;
+    /**
+     * 字段说明：HTTP客户端。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final HttpClient httpClient;
+    /**
+     * 字段说明：对象映射器。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final ObjectMapper objectMapper;
+    /**
+     * 字段说明：执行器。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final Executor executor;
+    /**
+     * 字段说明：最大重试次数。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final int maxRetryAttempts;
+    /**
+     * 字段说明：重试退避毫秒。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final long retryBackoffMillis;
+    /**
+     * 字段说明：请求每秒。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final double requestsPerSecond;
 
+    /**
+     * 创建 HR花名册查询util工具实例。
+     *
+     * @param hrCpService HR企业微信service
+     * @param contactQueryUtil contact查询util
+     * @param executor 执行器
+     * @param maxRetryAttempts 最大重试次数
+     * @param retryBackoffMillis 重试退避毫秒
+     * @param requestsPerSecond 请求每秒
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     public WxHrRosterQueryUtil(
             WxCpService hrCpService,
             WxContactQueryUtil contactQueryUtil,
@@ -69,6 +141,20 @@ public class WxHrRosterQueryUtil {
                 maxRetryAttempts, retryBackoffMillis, requestsPerSecond);
     }
 
+    /**
+     * 创建 HR花名册查询util工具实例。
+     *
+     * @param hrCpService HR企业微信service
+     * @param contactQueryUtil contact查询util
+     * @param executor 执行器
+     * @param httpClient HTTP客户端
+     * @param maxRetryAttempts 最大重试次数
+     * @param retryBackoffMillis 重试退避毫秒
+     * @param requestsPerSecond 请求每秒
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     public WxHrRosterQueryUtil(
             WxCpService hrCpService,
             WxContactQueryUtil contactQueryUtil,
@@ -91,19 +177,31 @@ public class WxHrRosterQueryUtil {
     }
 
     /**
-     * 获取花名册字段配置。
+     * 获取字段配置。
      *
-     * @return 字段配置 JSON
+     * @return 字段配置
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     * @throws IOException HTTP 请求或响应解析失败时抛出
+     * @throws InterruptedException 线程等待被中断时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public JsonNode getFieldSetting() throws WxErrorException, IOException, InterruptedException {
         return getJson(FIELD_SETTING_URL, Map.of());
     }
 
     /**
-     * 获取单个员工的花名册信息。
+     * 获取员工信息。
      *
      * @param userId 成员 userId
-     * @return 花名册 JSON，包含字段值列表
+     * @return 员工信息
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     * @throws IOException HTTP 请求或响应解析失败时抛出
+     * @throws InterruptedException 线程等待被中断时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public JsonNode getStaffInfo(String userId) throws WxErrorException, IOException, InterruptedException {
         if (userId == null || userId.isBlank()) {
@@ -113,11 +211,13 @@ public class WxHrRosterQueryUtil {
     }
 
     /**
-     * 获取全企业所有在职成员的花名册信息。
-     * <p>
-     * 内部流程：先通过通讯录接口拉取全员 userId，再并发批量调用花名册接口，自带限流和指数退避重试。
+     * 获取全部员工信息。
      *
-     * @return 全员花名册查询结果，包含成功与失败列表
+     * @return 全部员工信息
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public WxHrRosterResult getAllStaffInfo() throws WxErrorException {
         List<WxUserVO> users = contactQueryUtil.getAllUsersSimple();
@@ -131,10 +231,13 @@ public class WxHrRosterQueryUtil {
     }
 
     /**
-     * 批量获取指定 userId 列表的花名册信息。
+     * 获取员工信息批次。
      *
      * @param userIds 成员 userId 集合
-     * @return 花名册查询结果，包含成功与失败列表
+     * @return 员工信息批次
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public WxHrRosterResult getStaffInfoBatch(Collection<String> userIds) {
         if (userIds == null || userIds.isEmpty()) {
@@ -178,6 +281,16 @@ public class WxHrRosterQueryUtil {
         return new WxHrRosterResult(Map.copyOf(success), List.copyOf(failures));
     }
 
+    /**
+     * 拉取员工信息with重试。
+     *
+     * @param userId 成员 userId
+     * @param rateLimiter ratelimiter
+     * @return 花名册outcome
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private RosterOutcome fetchStaffInfoWithRetry(String userId, SimpleRateLimiter rateLimiter) {
         Throwable lastError = null;
         for (int attempt = 1; attempt <= maxRetryAttempts; attempt++) {
@@ -205,6 +318,19 @@ public class WxHrRosterQueryUtil {
                 new WxHrRosterFetchFailure(userId, maxRetryAttempts, type, msg));
     }
 
+    /**
+     * 发送 GET 请求并解析 JSON 响应。
+     *
+     * @param url 企业微信 API 地址
+     * @param params URL 查询参数
+     * @return JSON
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     * @throws IOException HTTP 请求或响应解析失败时抛出
+     * @throws InterruptedException 线程等待被中断时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private JsonNode getJson(String url, Map<String, String> params)
             throws WxErrorException, IOException, InterruptedException {
         String accessToken = hrCpService.getAccessToken();
@@ -235,6 +361,15 @@ public class WxHrRosterQueryUtil {
         return json;
     }
 
+    /**
+     * 执行 exponentialBackoff 相关逻辑。
+     *
+     * @param attempt attempt
+     * @return long
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private long exponentialBackoff(int attempt) {
         if (retryBackoffMillis == 0L) {
             return 0L;
@@ -244,6 +379,15 @@ public class WxHrRosterQueryUtil {
         return Math.min(backoff, maxBackoff);
     }
 
+    /**
+     * 执行 unwrap 相关逻辑。
+     *
+     * @param t t
+     * @return throwable
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Throwable unwrap(Throwable t) {
         Throwable c = t;
         while (c.getCause() != null && c != c.getCause()) {
@@ -252,22 +396,73 @@ public class WxHrRosterQueryUtil {
         return c;
     }
 
+    /**
+     * 对 URL 参数值进行编码。
+     *
+     * @param value 值
+     * @return string
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static String urlEncode(String value) {
         return value == null ? "" : URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
+    /**
+     * 记录说明：花名册outcome。
+     *
+     * @param userId 成员 userId
+     * @param staffInfo 员工信息
+     * @param failure failure
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private record RosterOutcome(String userId, JsonNode staffInfo, WxHrRosterFetchFailure failure) {
     }
 
+    /**
+     * 类说明：simpleratelimiter。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static final class SimpleRateLimiter {
+        /**
+         * 字段说明：intervalnanos。
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
         private final long intervalNanos;
+        /**
+         * 字段说明：nextallowednanos。
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
         private long nextAllowedNanos;
 
+        /**
+         * 创建 simpleratelimiter实例。
+         *
+         * @param rps rps
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
         private SimpleRateLimiter(double rps) {
             this.intervalNanos = rps <= 0D ? 0L : (long) (1_000_000_000D / rps);
             this.nextAllowedNanos = System.nanoTime();
         }
 
+        /**
+         * 执行 acquire 相关逻辑。
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
         private synchronized void acquire() {
             if (intervalNanos <= 0L) {
                 return;

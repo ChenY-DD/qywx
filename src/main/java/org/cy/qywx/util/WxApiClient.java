@@ -19,22 +19,66 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 企业微信 API 通用客户端，支持自定义 URL 和参数，自动注入 access_token。
+ * 类说明：API客户端。
+ *
+ * @author cy
+ * Copyright (c) CY
  */
 public class WxApiClient {
 
+    /**
+     * 字段说明：日志。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static final Logger log = LoggerFactory.getLogger(WxApiClient.class);
 
+    /**
+     * 字段说明：企业微信企业微信service。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final WxCpService wxCpService;
+    /**
+     * 字段说明：HTTP客户端。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final HttpClient httpClient;
+    /**
+     * 字段说明：对象映射器。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final ObjectMapper objectMapper;
 
+    /**
+     * 创建 API客户端实例。
+     *
+     * @param wxCpService 企业微信企业微信service
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     public WxApiClient(WxCpService wxCpService) {
         this(wxCpService, HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build());
     }
 
+    /**
+     * 创建 API客户端实例。
+     *
+     * @param wxCpService 企业微信企业微信service
+     * @param httpClient HTTP客户端
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     public WxApiClient(WxCpService wxCpService, HttpClient httpClient) {
         this.wxCpService = wxCpService;
         this.httpClient = httpClient;
@@ -42,27 +86,49 @@ public class WxApiClient {
         log.info("WxApiClient initialized");
     }
 
+    /**
+     * 创建 API客户端实例。
+     *
+     * @param wxCpService 企业微信企业微信service
+     * @param httpClient HTTP客户端
+     * @param ignoredMeterRegistry ignoredmeterregistry
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     @Deprecated(since = "1.0.4", forRemoval = true)
     public WxApiClient(WxCpService wxCpService, HttpClient httpClient, Object ignoredMeterRegistry) {
         this(wxCpService, httpClient);
     }
 
     /**
-     * 发起 GET 请求，自动附加 access_token。
+     * 发送 GET 请求并返回响应文本。
      *
-     * @param url 企业微信 API URL（不含 access_token）
-     * @return 响应 JSON 字符串
+     * @param url 企业微信 API 地址
+     * @return string
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     * @throws IOException HTTP 请求或响应解析失败时抛出
+     * @throws InterruptedException 线程等待被中断时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public String get(String url) throws WxErrorException, IOException, InterruptedException {
         return get(url, Map.of());
     }
 
     /**
-     * 发起 GET 请求，自动附加 access_token 和自定义参数。
+     * 发送 GET 请求并返回响应文本。
      *
-     * @param url 企业微信 API URL（不含 access_token）
-     * @param params 额外的查询参数
-     * @return 响应 JSON 字符串
+     * @param url 企业微信 API 地址
+     * @param params URL 查询参数
+     * @return string
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     * @throws IOException HTTP 请求或响应解析失败时抛出
+     * @throws InterruptedException 线程等待被中断时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public String get(String url, Map<String, String> params) throws WxErrorException, IOException, InterruptedException {
         log.debug("GET request: url={}, params={}", url, params);
@@ -91,23 +157,35 @@ public class WxApiClient {
     }
 
     /**
-     * 发起 POST 请求，自动附加 access_token。
+     * 发送 POST 请求并返回响应文本。
      *
-     * @param url 企业微信 API URL（不含 access_token）
-     * @param body 请求体（JSON 字符串）
-     * @return 响应 JSON 字符串
+     * @param url 企业微信 API 地址
+     * @param body JSON 请求体
+     * @return string
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     * @throws IOException HTTP 请求或响应解析失败时抛出
+     * @throws InterruptedException 线程等待被中断时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public String post(String url, String body) throws WxErrorException, IOException, InterruptedException {
         return post(url, Map.of(), body);
     }
 
     /**
-     * 发起 POST 请求，自动附加 access_token 和自定义参数。
+     * 发送 POST 请求并返回响应文本。
      *
-     * @param url 企业微信 API URL（不含 access_token）
-     * @param params 额外的查询参数
-     * @param body 请求体（JSON 字符串）
-     * @return 响应 JSON 字符串
+     * @param url 企业微信 API 地址
+     * @param params URL 查询参数
+     * @param body JSON 请求体
+     * @return string
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     * @throws IOException HTTP 请求或响应解析失败时抛出
+     * @throws InterruptedException 线程等待被中断时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public String post(String url, Map<String, String> params, String body) throws WxErrorException, IOException, InterruptedException {
         log.debug("POST request: url={}, params={}, bodyLength={}", url, params, body != null ? body.length() : 0);
@@ -137,21 +215,33 @@ public class WxApiClient {
     }
 
     /**
-     * 发起 GET 请求并解析为 JsonNode。
+     * 发送 GET 请求并解析 JSON 响应。
      *
-     * @param url 企业微信 API URL（不含 access_token）
-     * @return 响应 JsonNode
+     * @param url 企业微信 API 地址
+     * @return JSON
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     * @throws IOException HTTP 请求或响应解析失败时抛出
+     * @throws InterruptedException 线程等待被中断时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public JsonNode getJson(String url) throws WxErrorException, IOException, InterruptedException {
         return getJson(url, Map.of());
     }
 
     /**
-     * 发起 GET 请求并解析为 JsonNode。
+     * 发送 GET 请求并解析 JSON 响应。
      *
-     * @param url 企业微信 API URL（不含 access_token）
-     * @param params 额外的查询参数
-     * @return 响应 JsonNode
+     * @param url 企业微信 API 地址
+     * @param params URL 查询参数
+     * @return JSON
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     * @throws IOException HTTP 请求或响应解析失败时抛出
+     * @throws InterruptedException 线程等待被中断时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public JsonNode getJson(String url, Map<String, String> params) throws WxErrorException, IOException, InterruptedException {
         String response = get(url, params);
@@ -159,29 +249,52 @@ public class WxApiClient {
     }
 
     /**
-     * 发起 POST 请求并解析为 JsonNode。
+     * 发送 POST 请求并解析 JSON 响应。
      *
-     * @param url 企业微信 API URL（不含 access_token）
-     * @param body 请求体（JSON 字符串）
-     * @return 响应 JsonNode
+     * @param url 企业微信 API 地址
+     * @param body JSON 请求体
+     * @return JSON节点
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     * @throws IOException HTTP 请求或响应解析失败时抛出
+     * @throws InterruptedException 线程等待被中断时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public JsonNode postJson(String url, String body) throws WxErrorException, IOException, InterruptedException {
         return postJson(url, Map.of(), body);
     }
 
     /**
-     * 发起 POST 请求并解析为 JsonNode。
+     * 发送 POST 请求并解析 JSON 响应。
      *
-     * @param url 企业微信 API URL（不含 access_token）
-     * @param params 额外的查询参数
-     * @param body 请求体（JSON 字符串）
-     * @return 响应 JsonNode
+     * @param url 企业微信 API 地址
+     * @param params URL 查询参数
+     * @param body JSON 请求体
+     * @return JSON节点
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     * @throws IOException HTTP 请求或响应解析失败时抛出
+     * @throws InterruptedException 线程等待被中断时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public JsonNode postJson(String url, Map<String, String> params, String body) throws WxErrorException, IOException, InterruptedException {
         String response = post(url, params, body);
         return objectMapper.readTree(response);
     }
 
+    /**
+     * 构建URL。
+     *
+     * @param url 企业微信 API 地址
+     * @param params URL 查询参数
+     * @return string
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String buildUrl(String url, Map<String, String> params) throws WxErrorException {
         if (url == null || url.isBlank()) {
             throw new IllegalArgumentException("url must not be blank");
@@ -208,6 +321,16 @@ public class WxApiClient {
         return urlBuilder.toString();
     }
 
+    /**
+     * 处理response。
+     *
+     * @param response response
+     * @return string
+     * @throws IOException HTTP 请求或响应解析失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String handleResponse(HttpResponse<String> response) throws IOException {
         if (response.statusCode() != 200) {
             log.error("HTTP error: statusCode={}, body={}", response.statusCode(), response.body());
@@ -227,6 +350,15 @@ public class WxApiClient {
         return body;
     }
 
+    /**
+     * 对 URL 参数值进行编码。
+     *
+     * @param value 值
+     * @return string
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String urlEncode(String value) {
         if (value == null) {
             return "";

@@ -6,22 +6,43 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * 加班信息 VO（来源 ot_info）。
+ * 类说明：考勤打卡加班业务视图对象。
  *
- * @author CY
+ * @author cy
  * Copyright (c) CY
  */
 @Data
 public class WxCheckinOvertimeVO implements Serializable {
 
+    /**
+     * 字段说明：序列化版本号。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static final long serialVersionUID = 1L;
 
-    /** 加班状态 */
+    /**
+     * 字段说明：ot状态。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Integer otStatus;
 
-    /** 加班时长（秒） */
+    /**
+     * 字段说明：ot时长秒。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Integer otDurationSeconds;
 
-    /** 加班异常时长（秒）数组 */
+    /**
+     * 字段说明：异常时长秒。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<Integer> exceptionDurationSeconds;
 }

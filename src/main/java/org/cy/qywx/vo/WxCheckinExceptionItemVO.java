@@ -8,35 +8,75 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * 业务语义方法（{@code getLatePersons} 等）返回的扁平异常行 VO。
- * <p>每行表示「某 userId 在某天发生了某种异常」，多次迟到的人会按日期粒度出现多行。</p>
+ * 类说明：考勤打卡异常项业务视图对象。
  *
- * @author CY
+ * @author cy
  * Copyright (c) CY
  */
 @Data
 public class WxCheckinExceptionItemVO implements Serializable {
 
+    /**
+     * 字段说明：序列化版本号。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static final long serialVersionUID = 1L;
 
-    /** 用户 ID */
+    /**
+     * 字段说明：成员 userId。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String userId;
 
-    /** 用户姓名（来自日报 base_info.name） */
+    /**
+     * 字段说明：名称。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String name;
 
-    /** 用户所属部门（按分号拆分后的列表） */
+    /**
+     * 字段说明：部门列表。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<String> departments;
 
-    /** 异常发生的日期 */
+    /**
+     * 字段说明：日期。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Date date;
 
-    /** 异常类型 */
+    /**
+     * 字段说明：异常类型。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private WxCheckinExceptionTypeEnum exceptionType;
 
-    /** 当日该类型的异常次数 */
+    /**
+     * 字段说明：异常count。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Integer exceptionCount;
 
-    /** 当日该类型的异常时长（分钟，由 WeCom 秒数 / 60 向下取整） */
+    /**
+     * 字段说明：异常时长分钟。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Long exceptionDurationMinutes;
 }

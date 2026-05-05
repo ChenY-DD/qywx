@@ -1,416 +1,340 @@
-﻿# qywx-wecom-spring-boot-starter
+# qywx-wecom-spring-boot-starter
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
-A Spring Boot Starter for WeCom (WeChat Work) contact and approval querying.
+Spring Boot Starter for WeCom (WeChat Work) contact, approval, HR roster, and attendance queries.
 
-## Project Overview
+It wraps `weixin-java-cp` with business-oriented utilities, so application code can query common WeCom data without assembling low-level SDK calls in every service.
 
-`qywx-wecom-spring-boot-starter` is a secondary wrapper built on top of `weixin-java-cp`.
+## Features
 
-It provides stable, business-friendly APIs for common querying scenarios and hides low-level SDK details.
+- Spring Boot auto-configuration for `WxCpService` and utility beans
+- Contact queries for departments and members
+- Approval queries with date segmentation, paging, retry, rate limiting, and failure collection
+- HR roster queries for the 智慧人事 / 人事助手 application
+- Attendance queries for checkin records, reports, schedules, and exception buckets
+- Generic `WxApiClient` for custom WeCom APIs with automatic `access_token` injection
+- SLF4J logs for initialization, retries, completion, and failures
 
-Code characteristic:
+## Requirements
 
-- With only 2 lines of business code, you can query WeCom users, departments, and approvals
-- No SDK assembly code is needed in the business layer
-- Suitable for rapid integration in internal systems, admin platforms, and approval-sync jobs
+- Java 21+
+- Spring Boot 3.5.x
+- Maven
 
-What this starter provides:
-
-- Contact querying utilities for departments and users
-- Approval querying utilities with segmented paging, retry, rate limiting, and failure collection
-- Generic API client for custom WeCom API calls with automatic token injection
-- Spring Boot auto-configuration and `@ConfigurationProperties`
-
-What this starter does not do:
-
-- It does not replace `weixin-java-cp`
-- It does not cover the full WeCom API surface
-
-## Dependency
+## Installation
 
 ```xml
 <dependency>
     <groupId>org.cy</groupId>
     <artifactId>qywx-wecom-spring-boot-starter</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
 </dependency>
 ```
 
-## Required Configuration
+## Configuration
+
+Minimal configuration:
 
 ```properties
-wx.cp.corp-id=your-corp-id
-wx.cp.corp-secret=your-corp-secret
+wx.cp.corp-id=wwxxxxxxxx
+wx.cp.corp-secret=your-app-secret
 wx.cp.agent-id=1000002
+```
 
-# Optional approval query tuning (with optimized defaults for rate limiting)
+Full optional tuning:
+
+```properties
+# Approval query
 wx.cp.approval.segment-days=29
 wx.cp.approval.page-size=100
-wx.cp.approval.max-retry-attempts=5
-wx.cp.approval.retry-backoff-millis=1000
-wx.cp.approval.requests-per-second=10
+wx.cp.approval.max-retry-attempts=3
+wx.cp.approval.retry-backoff-millis=300
+wx.cp.approval.requests-per-second=0
 wx.cp.approval.executor-threads=8
 
-# Optional HR roster (智慧人事 / 人事助手) — requires the dedicated HR app secret
+# HR roster. Requires the dedicated HR app secret.
 wx.cp.hr.secret=your-hr-app-secret
+wx.cp.hr.agent-id=1000003
 wx.cp.hr.max-retry-attempts=5
 wx.cp.hr.retry-backoff-millis=1000
 wx.cp.hr.requests-per-second=10
 wx.cp.hr.executor-threads=8
+
+# Attendance / checkin
+wx.cp.checkin.segment-days=30
+wx.cp.checkin.user-batch-size=100
+wx.cp.checkin.max-retry-attempts=3
+wx.cp.checkin.retry-backoff-millis=500
+wx.cp.checkin.requests-per-second=0
+wx.cp.checkin.executor-threads=8
 ```
 
-## How To Use
+Notes:
 
-After adding the dependency and configuration, the starter auto-registers these beans:
+- `wx.cp.corp-secret` is the primary app secret used by contact, approval, attendance, and generic API calls.
+- `wx.cp.hr.secret` must be the dedicated HR app secret. The contact or self-built app secret cannot access HR roster APIs.
+- `requests-per-second=0` disables the built-in limiter for that module.
+
+## Auto-Configured Beans
+
+After the dependency and minimal configuration are present, the starter registers:
 
 - `WxCpService`
 - `WxContactQueryUtil`
 - `WxApprovalQueryUtil`
+- `WxCheckinQueryUtil`
 - `WxApiClient`
-- `WxHrRosterQueryUtil` (only when `wx.cp.hr.secret` is configured)
 
-You can inject them directly in your Spring Boot application:
+When `wx.cp.hr.secret` is configured, it also registers:
+
+- `WxHrRosterQueryUtil`
+- `qywxHrCpService`
+
+If your application already defines a compatible `WxCpService` or one of the executor beans, auto-configuration backs off and reuses your bean.
+
+## Quick Start
 
 ```java
 @Service
-public class DemoService {
+public class WeComService {
 
-    private final WxContactQueryUtil wxContactQueryUtil;
-    private final WxApprovalQueryUtil wxApprovalQueryUtil;
-    private final WxApiClient wxApiClient;
+    private final WxContactQueryUtil contacts;
+    private final WxApprovalQueryUtil approvals;
+    private final WxCheckinQueryUtil checkin;
+    private final WxApiClient apiClient;
 
-    public DemoService(
-            WxContactQueryUtil wxContactQueryUtil,
-            WxApprovalQueryUtil wxApprovalQueryUtil,
-            WxApiClient wxApiClient
+    public WeComService(
+            WxContactQueryUtil contacts,
+            WxApprovalQueryUtil approvals,
+            WxCheckinQueryUtil checkin,
+            WxApiClient apiClient
     ) {
-        this.wxContactQueryUtil = wxContactQueryUtil;
-        this.wxApprovalQueryUtil = wxApprovalQueryUtil;
-        this.wxApiClient = wxApiClient;
+        this.contacts = contacts;
+        this.approvals = approvals;
+        this.checkin = checkin;
+        this.apiClient = apiClient;
     }
 
-    public List<WxUserVO> listUsers() throws WxErrorException {
-        return wxContactQueryUtil.getAllUsers();
+    public List<WxUserVO> users() throws WxErrorException {
+        return contacts.getAllUsers();
     }
 
-    public WxApprovalDetailQueryResult queryApprovals(Date startTime, Date endTime) throws WxErrorException {
-        return wxApprovalQueryUtil.queryApprovalDetails(startTime, endTime);
+    public WxApprovalDetailQueryResult recentApprovals() throws WxErrorException {
+        return approvals.queryApprovalDetails(WxDateRangeUtils.last3Days());
     }
 
-    public JsonNode callCustomApi() throws Exception {
-        return wxApiClient.getJson("https://qyapi.weixin.qq.com/cgi-bin/user/get", 
-                Map.of("userid", "zhangsan"));
+    public WxAttendanceReportVO attendance(WxDateRange range, List<String> userIds) {
+        return checkin.getAttendanceReport(range, userIds);
+    }
+
+    public JsonNode customApi() throws Exception {
+        return apiClient.getJson(
+                "https://qyapi.weixin.qq.com/cgi-bin/user/get",
+                Map.of("userid", "zhangsan")
+        );
     }
 }
 ```
 
-Minimal examples:
+## Common Usage
+
+### Contact
 
 ```java
-// Contact queries
-List<WxUserVO> users = wxContactQueryUtil.getAllUsers();
 List<WxDepartmentVO> departments = wxContactQueryUtil.getAllDepartments();
+List<WxUserVO> users = wxContactQueryUtil.getAllUsers();
+List<WxUserVO> simpleUsers = wxContactQueryUtil.getAllUsersSimple();
+WxUserVO user = wxContactQueryUtil.getUserById("zhangsan");
 ```
 
+### Approval
+
 ```java
-// Approval queries with date range utilities
-WxApprovalDetailQueryResult result = wxApprovalQueryUtil.queryApprovalDetails(WxDateRangeUtils.last3Days());
-Map<String, List<WxApprovalDetailVO>> grouped = result.groupByTemplateId();
+WxDateRange range = WxDateRangeUtils.currentMonth();
 
-// Query approvals for current month
-List<WxApprovalDetailVO> monthlyApprovals = wxApprovalQueryUtil.getApprovalDetails(WxDateRangeUtils.currentMonth());
+List<String> spNos = wxApprovalQueryUtil.getApprovalSpNos(range);
+List<WxApprovalDetailVO> details = wxApprovalQueryUtil.getApprovalDetails(range);
 
-// Query approvals by template ID for today
-List<String> spNos = wxApprovalQueryUtil.getApprovalSpNosByTemplateId("template_id", WxDateRangeUtils.today());
+WxApprovalDetailQueryResult result = wxApprovalQueryUtil.queryApprovalDetails(range);
+Map<String, List<WxApprovalDetailVO>> byTemplate = result.groupByTemplateId();
+List<WxApprovalDetailFetchFailure> failures = result.failures();
 ```
 
-```java
-// Call any WeCom API with automatic access_token injection
-String response = wxApiClient.get("https://qyapi.weixin.qq.com/cgi-bin/user/get", 
-        Map.of("userid", "zhangsan"));
+Template helpers:
 
-JsonNode json = wxApiClient.postJson("https://qyapi.weixin.qq.com/cgi-bin/message/send",
-        "{\"touser\":\"zhangsan\",\"msgtype\":\"text\"}");
+```java
+List<WxApprovalTemplateVO> templates = wxApprovalQueryUtil.getTemplates(range);
+WxCpOaApprovalTemplateResult template = wxApprovalQueryUtil.getTemplateDetail("template_id");
+Map<String, String> templateIds = wxApprovalQueryUtil.getTemplateIdsBySpNos(spNos);
 ```
 
-Typical usage:
-
-- Use `WxContactQueryUtil` for department and user queries
-- Use `WxDateRangeUtils` for convenient date range creation (today, last3Days, currentMonth, currentYear, custom)
-- Use `WxApprovalQueryUtil#getApprovalSpNos(...)` when you only need approval numbers
-- Use `WxApprovalQueryUtil#queryApprovalDetails(...)` when you need both successful details and failed records
-- Use `WxApprovalQueryUtil#getApprovalDetailsGroupByTemplateId(...)` when grouping by template is needed
-- Use `WxApiClient` for custom WeCom API calls not covered by the utility classes
-
-**Date Range Examples:**
+### Date Ranges
 
 ```java
-// Query approvals for the last 3 days
-wxApprovalQueryUtil.queryApprovalDetails(WxDateRangeUtils.last3Days());
-
-// Query approvals for current month
-wxApprovalQueryUtil.getApprovalDetails(WxDateRangeUtils.currentMonth());
-
-// Query approvals for today
-wxApprovalQueryUtil.getApprovalSpNos(WxDateRangeUtils.today());
-
-// Query approvals for the last 7 days
-wxApprovalQueryUtil.getApprovalDetails(WxDateRangeUtils.lastDays(7));
-
-// Custom date range
-wxApprovalQueryUtil.queryApprovalDetails(
-    WxDateRangeUtils.custom(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 12, 31))
+WxDateRange today = WxDateRangeUtils.today();
+WxDateRange last7Days = WxDateRangeUtils.lastDays(7);
+WxDateRange month = WxDateRangeUtils.currentMonth();
+WxDateRange custom = WxDateRangeUtils.custom(
+        LocalDate.of(2026, 1, 1),
+        LocalDate.of(2026, 1, 31)
 );
 ```
 
-If your application already defines its own `WxCpService` or approval-query executor bean, the starter will back off and use your bean instead.
+### Custom WeCom APIs
 
-## Public APIs
-
-### WxContactQueryUtil
-
-- `List<WxDepartmentVO> getDepartments(Long departmentId)`
-- `List<WxDepartmentVO> getAllDepartments()`
-- `WxDepartmentVO getDepartment(Long departmentId)`
-- `List<WxUserVO> getUsersByDepartment(Long departmentId, boolean fetchChild, Integer status)`
-- `List<WxUserVO> getAllUsers()`
-- `List<WxUserVO> getAllUsers(Integer status)`
-- `List<WxUserVO> getUsersSimpleByDepartment(Long departmentId, boolean fetchChild, Integer status)`
-- `List<WxUserVO> getAllUsersSimple()`
-- `List<WxUserVO> getAllUsersSimple(Integer status)`
-- `WxUserVO getUserById(String userId)`
-
-### WxApprovalQueryUtil
-
-- `List<String> getApprovalSpNos(Date startTime, Date endTime)`
-- `List<String> getApprovalSpNos(WxDateRange dateRange)`
-- `List<String> getApprovalSpNosByTemplateId(String templateId, Date startTime, Date endTime)`
-- `List<String> getApprovalSpNosByTemplateId(String templateId, WxDateRange dateRange)`
-- `List<WxApprovalDetailVO> getApprovalDetails(Date startTime, Date endTime)`
-- `List<WxApprovalDetailVO> getApprovalDetails(WxDateRange dateRange)`
-- `List<WxApprovalDetailVO> getApprovalDetailsByTemplateId(String templateId, Date startTime, Date endTime)`
-- `Map<String, List<WxApprovalDetailVO>> getApprovalDetailsGroupByTemplateId(Date startTime, Date endTime)`
-- `WxApprovalDetailQueryResult queryApprovalDetails(Date startTime, Date endTime)`
-- `WxApprovalDetailQueryResult queryApprovalDetails(WxDateRange dateRange)`
-- `WxApprovalDetailQueryResult queryApprovalDetailsByTemplateId(String templateId, Date startTime, Date endTime)`
-- `WxApprovalDetailQueryResult queryApprovalDetailsByTemplateId(String templateId, WxDateRange dateRange)`
-- `List<WxApprovalTemplateVO> getTemplates(Date startTime, Date endTime)`
-- `List<WxApprovalTemplateVO> getTemplates(WxDateRange dateRange)`
-- `Map<String, WxApprovalTemplateVO> getTemplateMap(Date startTime, Date endTime)`
-- `Map<String, WxApprovalTemplateVO> getTemplateMap(WxDateRange dateRange)`
-- `WxCpOaApprovalTemplateResult getTemplateDetail(String templateId)`
-- `Map<String, String> getTemplateIdsBySpNos(String... spNos)`
-- `Map<String, String> getTemplateIdsBySpNos(Collection<String> spNos)`
-- `Map<String, WxCpOaApprovalTemplateResult> getTemplateDetailsBySpNos(String... spNos)`
-- `Map<String, WxCpOaApprovalTemplateResult> getTemplateDetailsBySpNos(Collection<String> spNos)`
-
-### WxDateRangeUtils
-
-Convenient date range creation utilities:
-
-- `WxDateRange today()` - From today 00:00:00 to now
-- `WxDateRange last3Days()` - Last 3 days from now
-- `WxDateRange lastDays(int days)` - Last N days from now
-- `WxDateRange currentMonth()` - From 1st of current month to now
-- `WxDateRange currentYear()` - From Jan 1st of current year to now
-- `WxDateRange custom(Date startTime, Date endTime)` - Custom range with Date
-- `WxDateRange custom(LocalDateTime startTime, LocalDateTime endTime)` - Custom range with LocalDateTime
-- `WxDateRange custom(LocalDate startDate, LocalDate endDate)` - Custom range with LocalDate (end date extends to 23:59:59)
-
-**Examples:**
+`WxApiClient` injects `access_token`, sends the HTTP request, checks HTTP status, and validates WeCom `errcode`.
 
 ```java
-// Query last 3 days
-wxApprovalQueryUtil.getApprovalDetails(WxDateRangeUtils.last3Days());
+String response = wxApiClient.get(
+        "https://qyapi.weixin.qq.com/cgi-bin/user/get",
+        Map.of("userid", "zhangsan")
+);
 
-// Query current month
-wxApprovalQueryUtil.getApprovalDetails(WxDateRangeUtils.currentMonth());
-
-// Query custom range
-wxApprovalQueryUtil.queryApprovalDetails(
-    WxDateRangeUtils.custom(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 12, 31))
+JsonNode json = wxApiClient.postJson(
+        "https://qyapi.weixin.qq.com/cgi-bin/message/send",
+        "{\"touser\":\"zhangsan\",\"msgtype\":\"text\"}"
 );
 ```
 
-### WxApiClient
+### HR Roster
 
-Generic client for calling any WeCom API with automatic `access_token` injection:
-
-- `String get(String url)` - GET request
-- `String get(String url, Map<String, String> params)` - GET request with query parameters
-- `String post(String url, String body)` - POST request with JSON body
-- `String post(String url, Map<String, String> params, String body)` - POST request with query parameters and JSON body
-- `JsonNode getJson(String url)` - GET request returning parsed JSON
-- `JsonNode getJson(String url, Map<String, String> params)` - GET request with parameters returning parsed JSON
-- `JsonNode postJson(String url, String body)` - POST request returning parsed JSON
-- `JsonNode postJson(String url, Map<String, String> params, String body)` - POST request with parameters returning parsed JSON
-
-**Usage Example:**
+Enable HR roster support with `wx.cp.hr.secret`.
 
 ```java
-// Simple GET request
-String response = wxApiClient.get("https://qyapi.weixin.qq.com/cgi-bin/user/get", 
-        Map.of("userid", "zhangsan"));
+JsonNode fields = wxHrRosterQueryUtil.getFieldSetting();
+JsonNode staff = wxHrRosterQueryUtil.getStaffInfo("zhangsan");
 
-// POST request with JSON body
-String postResponse = wxApiClient.post("https://qyapi.weixin.qq.com/cgi-bin/message/send",
-        "{\"touser\":\"zhangsan\",\"msgtype\":\"text\",\"text\":{\"content\":\"Hello\"}}");
+WxHrRosterResult batch = wxHrRosterQueryUtil.getStaffInfoBatch(List.of("zhangsan", "lisi"));
+Map<String, JsonNode> success = batch.staffInfo();
+List<WxHrRosterFetchFailure> failures = batch.failures();
 
-// Parse response as JSON
-JsonNode json = wxApiClient.getJson("https://qyapi.weixin.qq.com/cgi-bin/department/list");
-int errcode = json.get("errcode").asInt();
+WxHrRosterResult all = wxHrRosterQueryUtil.getAllStaffInfo();
 ```
 
-The `WxApiClient` automatically:
-- Injects `access_token` into the URL
-- Handles HTTP communication
-- Validates response status codes
-- Checks WeCom API error codes (`errcode`)
+If WeCom returns `errcode=48002` or `errcode=60011`, verify that the HR application is enabled, `wx.cp.hr.secret` belongs to that application, and the administrator has authorized the visible scope.
 
-### WxHrRosterQueryUtil
+### Attendance / Checkin
 
-HR roster (花名册) queries against the 智慧人事 / 人事助手 application. **Requires the dedicated HR app secret** (`wx.cp.hr.secret`); the contact secret cannot access HR endpoints.
-
-- `JsonNode getFieldSetting()` — fetch roster field configuration (`/cgi-bin/hr/get_field_setting`)
-- `JsonNode getStaffInfo(String userId)` — fetch a single employee's roster (`/cgi-bin/hr/get_staff_info`)
-- `WxHrRosterResult getStaffInfoBatch(Collection<String> userIds)` — concurrent batch fetch with rate limiting and exponential backoff retry
-- `WxHrRosterResult getAllStaffInfo()` — fetch the full company roster (resolves user IDs via `WxContactQueryUtil` first, then batch-fetches)
-
-`WxHrRosterResult` exposes:
-- `Map<String, JsonNode> staffInfo()` — successful results keyed by `userId`
-- `List<WxHrRosterFetchFailure> failures()` — per-user failures with attempt count and error info
-
-**Usage Example:**
+`WxCheckinQueryUtil` reuses the primary `WxCpService`. It handles WeCom limits internally by splitting user IDs and date ranges.
 
 ```java
-@Service
-public class RosterService {
-    private final WxHrRosterQueryUtil wxHrRosterQueryUtil;
+WxDateRange range = WxDateRangeUtils.lastDays(30);
+List<String> userIds = List.of("zhangsan", "lisi");
 
-    public RosterService(WxHrRosterQueryUtil wxHrRosterQueryUtil) {
-        this.wxHrRosterQueryUtil = wxHrRosterQueryUtil;
-    }
+List<WxCheckinGroupVO> groups = wxCheckinQueryUtil.getCheckinGroups();
+WxCheckinRecordResult records = wxCheckinQueryUtil.getCheckinRecords(range, userIds);
+WxCheckinDayDataResult dayData = wxCheckinQueryUtil.getCheckinDayData(range, userIds);
+WxCheckinMonthDataResult monthData = wxCheckinQueryUtil.getCheckinMonthData(range, userIds);
+List<WxCheckinScheduleListItemVO> schedules = wxCheckinQueryUtil.getScheduleList(range, userIds);
 
-    public WxHrRosterResult fullRoster() throws WxErrorException {
-        return wxHrRosterQueryUtil.getAllStaffInfo();
-    }
-
-    public JsonNode oneEmployee(String userId) throws Exception {
-        return wxHrRosterQueryUtil.getStaffInfo(userId);
-    }
-}
+List<WxCheckinExceptionItemVO> late = wxCheckinQueryUtil.getLatePersons(range, userIds);
+WxAttendanceReportVO report = wxCheckinQueryUtil.getAttendanceReport(range, userIds);
 ```
 
-> If you receive `errcode=48002` or `errcode=60011`, verify that the 智慧人事 app is enabled, the configured secret belongs to that app, and the admin has authorized the visible scope.
+Available exception helpers:
 
-## Rate Limiting & Retry Strategy
+- `getLatePersons`
+- `getEarlyLeavePersons`
+- `getMissingCardPersons`
+- `getAbsentPersons`
+- `getLocationExceptions`
+- `getDeviceExceptions`
 
-The starter includes built-in rate limiting and exponential backoff retry to prevent hitting WeCom API limits:
+## Reliability
 
-- **Default rate limit**: 10 requests/second (configurable via `wx.cp.approval.requests-per-second`)
-- **Retry attempts**: 5 times with exponential backoff (1s → 2s → 4s → 8s → 16s)
-- **Segment-based querying**: Splits large date ranges into 29-day segments to avoid pagination limits
+Approval, HR roster, and attendance utilities include:
 
-These defaults are optimized for production use and help prevent `429 Too Many Requests` errors.
+- Date segmentation for large ranges
+- User batching where WeCom imposes per-request user limits
+- Retry with exponential backoff
+- Optional module-level rate limiting
+- Failure result objects for partial failures
+
+Default retry and limiter values are intentionally conservative. Tune them to match your WeCom app quota and job size.
 
 ## Observability
 
-The starter provides comprehensive observability through logging and metrics:
+The starter logs key operations with SLF4J:
 
-### Logging (SLF4J)
+- initialization options
+- query completion and duration
+- retry attempts
+- final failures
 
-All key operations are logged with appropriate levels:
+## API Index
 
-- **INFO**: Query completion, initialization, summary statistics
-- **WARN**: Retry attempts, failed detail fetches
-- **ERROR**: Final failures after all retries exhausted
-- **DEBUG**: Detailed request/response information, rate limiter stats
+### `WxContactQueryUtil`
 
-Example logs:
-```
-INFO  WxApprovalQueryUtil - WxApprovalQueryUtil initialized with options: segmentDays=29, pageSize=100, maxRetryAttempts=5, retryBackoffMillis=1000, requestsPerSecond=10.0
-INFO  WxApprovalQueryUtil - Approval spNo query completed: totalSpNos=150, totalApiCalls=2, durationMs=1250
-INFO  WxApprovalQueryUtil - Fetching details for 150 approval spNos
-WARN  WxApprovalQueryUtil - Failed to fetch approval detail for spNo=sp-123, attempt 1/5: rate limit exceeded
-INFO  WxApprovalQueryUtil - Approval details query completed: totalDetails=148, totalFailures=2, durationMs=15320
-```
+- `getDepartments(Long departmentId)`
+- `getAllDepartments()`
+- `getDepartment(Long departmentId)`
+- `getUsersByDepartment(Long departmentId, boolean fetchChild, Integer status)`
+- `getAllUsers()`
+- `getAllUsers(Integer status)`
+- `getUsersSimpleByDepartment(Long departmentId, boolean fetchChild, Integer status)`
+- `getAllUsersSimple()`
+- `getAllUsersSimple(Integer status)`
+- `getUserById(String userId)`
 
-### Metrics (Micrometer)
+### `WxApprovalQueryUtil`
 
-When `MeterRegistry` is available (e.g., with Spring Boot Actuator), the starter automatically records:
+- `getApprovalSpNos(...)`
+- `getApprovalSpNosByTemplateId(...)`
+- `getApprovalDetails(...)`
+- `getApprovalDetailsByTemplateId(...)`
+- `getApprovalDetailsGroupByTemplateId(...)`
+- `queryApprovalDetails(...)`
+- `queryApprovalDetailsByTemplateId(...)`
+- `getTemplates(...)`
+- `getTemplateMap(...)`
+- `getTemplateDetail(String templateId)`
+- `getTemplateIdsBySpNos(...)`
+- `getTemplateDetailsBySpNos(...)`
 
-**Timers** (with `success` tag):
-- `wx.approval.spnos.query` - Approval spNo query duration
-- `wx.approval.details.query` - Approval details query duration
-- `wx.approval.detail.fetch` - Individual detail fetch duration
-- `wx.api.request` - API request duration (with `method` tag: GET/POST)
+### `WxApiClient`
 
-**Counters**:
-- `wx.approval.spnos.total` - Total spNos fetched
-- `wx.approval.details.success` - Successful detail fetches
-- `wx.approval.details.failure` - Failed detail fetches
-- `wx.approval.detail.retry` - Retry attempts
-- `wx.api.http.error` - HTTP errors
-- `wx.api.wechat.error.{errcode}` - WeCom API errors by error code
+- `get(String url)`
+- `get(String url, Map<String, String> params)`
+- `post(String url, String body)`
+- `post(String url, Map<String, String> params, String body)`
+- `getJson(String url)`
+- `getJson(String url, Map<String, String> params)`
+- `postJson(String url, String body)`
+- `postJson(String url, Map<String, String> params, String body)`
 
-**Example with Spring Boot Actuator:**
+### `WxDateRangeUtils`
 
-```xml
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-actuator</artifactId>
-</dependency>
-<dependency>
-    <groupId>io.micrometer</groupId>
-    <artifactId>micrometer-registry-prometheus</artifactId>
-</dependency>
-```
+- `today()`
+- `last3Days()`
+- `lastDays(int days)`
+- `currentMonth()`
+- `currentYear()`
+- `custom(Date startTime, Date endTime)`
+- `custom(LocalDateTime startTime, LocalDateTime endTime)`
+- `custom(LocalDate startDate, LocalDate endDate)`
 
-Metrics will be automatically exported to `/actuator/prometheus` endpoint.
+### `WxHrRosterQueryUtil`
 
-## Checkin Query
+- `getFieldSetting()`
+- `getStaffInfo(String userId)`
+- `getStaffInfoBatch(Collection<String> userIds)`
+- `getAllStaffInfo()`
 
-`WxCheckinQueryUtil` queries WeCom attendance data. It reuses the primary `WxCpService` (no separate secret) and exposes:
+### `WxCheckinQueryUtil`
 
-- `getCheckinGroups()` — list all attendance group configurations
-- `getCheckinRecords(start, end, userIds)` — raw checkin records (use `CHECKIN_TYPE_NORMAL/OUTSIDE/ALL` for finer control)
-- `getCheckinDayData(start, end, userIds)` — daily report
-- `getCheckinMonthData(start, end, userIds)` — monthly report
-- `getScheduleList(start, end, userIds)` — schedule list
-- Business-level helpers: `getLatePersons / getEarlyLeavePersons / getMissingCardPersons / getAbsentPersons / getLocationExceptions / getDeviceExceptions`
-- One-shot aggregate: `getAttendanceReport(start, end, userIds)` returning all six exception buckets in one API call
-
-The starter hides WeCom's `≤100 userIds / call` and `≤30 days / call` limits via internal 2-D batching with retry and rate-limit knobs under `wx.cp.checkin.*`.
-
-```yaml
-wx.cp:
-  corp-id: ww1234abcd
-  corp-secret: xxx
-  agent-id: 1000001
-  checkin:
-    segment-days: 30
-    user-batch-size: 100
-    requests-per-second: 5
-    executor-threads: 8
-```
-
-```java
-@Autowired
-private WxCheckinQueryUtil checkin;
-
-List<WxCheckinGroupVO> groups = checkin.getCheckinGroups();
-
-WxDateRange april = ...;          // build a 30-day range
-List<String> userIds = ...;        // explicit list — no auto-fetch
-List<WxCheckinExceptionItemVO> late = checkin.getLatePersons(april, userIds);
-
-WxAttendanceReportVO report = checkin.getAttendanceReport(april, userIds);
-report.getLate();
-report.getAbsent();
-report.getFailures();
-```
+- `getCheckinGroups()`
+- `getCheckinRecords(...)`
+- `getCheckinDayData(...)`
+- `getCheckinMonthData(...)`
+- `getScheduleList(...)`
+- `getLatePersons(...)`
+- `getEarlyLeavePersons(...)`
+- `getMissingCardPersons(...)`
+- `getAbsentPersons(...)`
+- `getLocationExceptions(...)`
+- `getDeviceExceptions(...)`
+- `getAttendanceReport(...)`
 
 ## Local Build
 

@@ -1,12 +1,15 @@
 package org.cy.qywx.util;
 
 /**
- * 花名册查询失败记录。
+ * 记录说明：HR花名册fetchfailure。
  *
- * @param userId 失败的成员 userId
- * @param attempts 已重试次数
- * @param errorType 错误类型（异常类名）
- * @param errorMessage 错误信息
+ * @param userId 成员 userId
+ * @param attempts 次数
+ * @param errorType error类型
+ * @param errorMessage errormessage
+ *
+ * @author cy
+ * Copyright (c) CY
  */
 public record WxHrRosterFetchFailure(
         String userId,

@@ -5,28 +5,59 @@ import lombok.Data;
 import java.io.Serializable;
 
 /**
- * 影响某一打卡日 / 月的审批单项 VO（来源 sp_items）。
+ * 类说明：考勤打卡审批项业务视图对象。
  *
- * @author CY
+ * @author cy
  * Copyright (c) CY
  */
 @Data
 public class WxCheckinApprovalItemVO implements Serializable {
 
+    /**
+     * 字段说明：序列化版本号。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static final long serialVersionUID = 1L;
 
-    /** 审批单号 */
+    /**
+     * 字段说明：审批number。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String spNumber;
 
-    /** 审批类型 */
+    /**
+     * 字段说明：类型。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Integer type;
 
-    /** 审批分类描述 */
+    /**
+     * 字段说明：审批标题。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String spTitle;
 
-    /** 审批通过的工时（秒） */
+    /**
+     * 字段说明：时长秒。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Integer durationSeconds;
 
-    /** 关联日期（unix 时间戳） */
+    /**
+     * 字段说明：时间unix。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Long timeUnix;
 }

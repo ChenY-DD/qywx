@@ -19,18 +19,61 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * 类说明：审批converter工具。
+ *
+ * @author cy
+ * Copyright (c) CY
+ */
 public final class WxApprovalConverter {
 
+    /**
+     * 字段说明：一天秒。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static final long ONE_DAY_SECONDS = 24L * 60 * 60;
+    /**
+     * 字段说明：默认时区。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static final ZoneId DEFAULT_ZONE = ZoneId.systemDefault();
 
+    /**
+     * 创建 审批converter工具实例。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private WxApprovalConverter() {
     }
 
+    /**
+     * 将企业微信原始对象转换为业务对象。
+     *
+     * @param detail 详情
+     * @return 审批详情业务视图对象
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     public static WxApprovalDetailVO from(WxCpApprovalDetailResult detail) {
         return from(detail, Instant.now().getEpochSecond());
     }
 
+    /**
+     * 将企业微信原始对象转换为业务对象。
+     *
+     * @param detail 详情
+     * @param nowEpochSecond nowepoch秒
+     * @return 审批详情业务视图对象
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     static WxApprovalDetailVO from(WxCpApprovalDetailResult detail, long nowEpochSecond) {
         if (detail == null || detail.getInfo() == null) {
             return null;
@@ -56,6 +99,15 @@ public final class WxApprovalConverter {
         return vo;
     }
 
+    /**
+     * 执行 groupByTemplateId 相关逻辑。
+     *
+     * @param details 详情列表
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     public static Map<String, List<WxApprovalDetailVO>> groupByTemplateId(List<WxCpApprovalDetailResult> details) {
         if (details == null || details.isEmpty()) {
             return Collections.emptyMap();
@@ -71,6 +123,15 @@ public final class WxApprovalConverter {
                 ));
     }
 
+    /**
+     * 执行 fillTimingFields 相关逻辑。
+     *
+     * @param vo vo
+     * @param nowEpochSecond nowepoch秒
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static void fillTimingFields(WxApprovalDetailVO vo, long nowEpochSecond) {
         Long applyTime = vo.getApplyTime();
         if (applyTime == null) {
@@ -92,16 +153,44 @@ public final class WxApprovalConverter {
         }
     }
 
+    /**
+     * 判断是否是否已结束。
+     *
+     * @param spStatus 审批状态
+     * @return boolean
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static boolean isClosed(String spStatus) {
         return spStatus != null && !"AUDITING".equals(spStatus);
     }
 
+    /**
+     * 判断是否samelocal日期。
+     *
+     * @param firstEpochSecond firstepoch秒
+     * @param secondEpochSecond 秒epoch秒
+     * @return boolean
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static boolean isSameLocalDate(long firstEpochSecond, long secondEpochSecond) {
         LocalDate first = Instant.ofEpochSecond(firstEpochSecond).atZone(DEFAULT_ZONE).toLocalDate();
         LocalDate second = Instant.ofEpochSecond(secondEpochSecond).atZone(DEFAULT_ZONE).toLocalDate();
         return first.equals(second);
     }
 
+    /**
+     * 解析关闭时间。
+     *
+     * @param vo vo
+     * @return long
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static Long resolveCloseTime(WxApprovalDetailVO vo) {
         return Stream.concat(
                         vo.getNodes() == null ? Stream.empty() : vo.getNodes().stream()
@@ -117,6 +206,15 @@ public final class WxApprovalConverter {
                 .orElse(null);
     }
 
+    /**
+     * 转换表单项列表。
+     *
+     * @param contents contents
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static List<WxApprovalDetailVO.FormItem> convertFormItems(List<ApplyDataContent> contents) {
         if (contents == null || contents.isEmpty()) {
             return Collections.emptyList();
@@ -131,6 +229,15 @@ public final class WxApprovalConverter {
         }).toList();
     }
 
+    /**
+     * 转换节点列表。
+     *
+     * @param records 记录列表
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static List<WxApprovalDetailVO.Node> convertNodes(WxCpApprovalRecord[] records) {
         if (records == null || records.length == 0) {
             return Collections.emptyList();
@@ -145,6 +252,15 @@ public final class WxApprovalConverter {
         }).toList();
     }
 
+    /**
+     * 转换节点详情列表。
+     *
+     * @param details 详情列表
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static List<WxApprovalDetailVO.NodeDetail> convertNodeDetails(List<WxCpApprovalRecordDetail> details) {
         if (details == null || details.isEmpty()) {
             return Collections.emptyList();
@@ -160,6 +276,15 @@ public final class WxApprovalConverter {
         }).toList();
     }
 
+    /**
+     * 转换评论列表。
+     *
+     * @param comments 评论列表
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static List<WxApprovalDetailVO.CommentItem> convertComments(List<WxCpApprovalComment> comments) {
         if (comments == null || comments.isEmpty()) {
             return Collections.emptyList();
@@ -174,6 +299,15 @@ public final class WxApprovalConverter {
         }).toList();
     }
 
+    /**
+     * 解析标题。
+     *
+     * @param content 内容
+     * @return string
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static String resolveTitle(ApplyDataContent content) {
         List<ContentTitle> titles = content.getTitles();
         if (titles == null || titles.isEmpty()) {
@@ -182,6 +316,15 @@ public final class WxApprovalConverter {
         return titles.get(0).getText();
     }
 
+    /**
+     * 解析值。
+     *
+     * @param content 内容
+     * @return string
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static String resolveValue(ApplyDataContent content) {
         if (content.getValue() == null) {
             return null;

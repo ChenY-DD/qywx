@@ -3,7 +3,13 @@ package org.cy.qywx.util;
 import java.util.Date;
 
 /**
- * 日期时间范围对象，用于统一封装审批查询的开始和结束时间。
+ * 记录说明：日期范围。
+ *
+ * @param startTime 开始时间
+ * @param endTime 结束时间
+ *
+ * @author cy
+ * Copyright (c) CY
  */
 public record WxDateRange(Date startTime, Date endTime) {
 

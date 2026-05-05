@@ -7,55 +7,131 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * 考勤组 VO（来源 getcorpcheckinoption / WxJava 中实际方法名为 getCropCheckinOption）。
+ * 类说明：考勤打卡考勤组业务视图对象。
  *
- * @author CY
+ * @author cy
  * Copyright (c) CY
  */
 @Data
 public class WxCheckinGroupVO implements Serializable {
 
+    /**
+     * 字段说明：序列化版本号。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static final long serialVersionUID = 1L;
 
-    /** 考勤组 ID */
+    /**
+     * 字段说明：考勤组ID。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Integer groupId;
 
-    /** 考勤组名称 */
+    /**
+     * 字段说明：考勤组名称。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String groupName;
 
-    /** 考勤组类型描述 */
+    /**
+     * 字段说明：考勤组类型。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String groupType;
 
-    /** 创建时间 */
+    /**
+     * 字段说明：create时间。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Date createTime;
 
-    /** 班次列表 */
+    /**
+     * 字段说明：排班列表。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<WxCheckinScheduleVO> schedules;
 
-    /** 可用范围（部门 / 标签 / userId） */
+    /**
+     * 字段说明：范围。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private WxCheckinRangeVO range;
 
-    /** 白名单（不需要打卡的 userId） */
+    /**
+     * 字段说明：白名单成员列表。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<String> whiteUsers;
 
-    /** 是否需要拍照 */
+    /**
+     * 字段说明：是否要求拍照打卡。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Boolean needPhoto;
 
-    /** 备注是否允许使用本地图片 */
+    /**
+     * 字段说明：备注是否允许使用本地图片。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Boolean noteCanUseLocalPic;
 
-    /** 非工作日是否允许打卡 */
+    /**
+     * 字段说明：是否允许非工作日打卡。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Boolean allowCheckinOffWorkday;
 
-    /** 非工作日是否允许补卡 */
+    /**
+     * 字段说明：是否允许非工作日提交申请。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Boolean allowApplyOffWorkday;
 
-    /** 是否自动同步法定节假日 */
+    /**
+     * 字段说明：同步假期列表。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Boolean syncHolidays;
 
-    /** 特殊上班日 */
+    /**
+     * 字段说明：特殊工作日日期列表。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<Date> speWorkdays;
 
-    /** 特殊放假日 */
+    /**
+     * 字段说明：特殊休息日日期列表。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<Date> speOffdays;
 }

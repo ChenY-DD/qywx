@@ -32,38 +32,74 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
 /**
- * 企业微信打卡查询工具，覆盖考勤组、原始打卡记录、日报、月报、排班，
- * 并提供「迟到 / 早退 / 缺卡 / 旷工 / 地点异常 / 设备异常」业务语义查询及一站式
- * {@link WxAttendanceReportVO} 报表。
+ * 类说明：考勤打卡查询util工具。
  *
- * <p>该工具复用主 {@link WxCpService}（与 {@code WxApprovalQueryUtil} 一致），
- * 通过 {@code wxCpService.getOaService()} 调用 WxJava 暴露的考勤接口；
- * 内部对企业微信「单次 ≤100 userId、≤30 天」硬限制做透明分批 / 分段。</p>
- *
- * @author CY
+ * @author cy
  * Copyright (c) CY
  */
 public class WxCheckinQueryUtil {
 
+    /**
+     * 字段说明：日志。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static final Logger log = LoggerFactory.getLogger(WxCheckinQueryUtil.class);
 
-    /** 打卡类型常量：上下班打卡。 */
+    /**
+     * 字段说明：考勤打卡类型正常。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     public static final int CHECKIN_TYPE_NORMAL = 1;
-    /** 打卡类型常量：外出打卡。 */
+    /**
+     * 字段说明：考勤打卡类型外出。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     public static final int CHECKIN_TYPE_OUTSIDE = 2;
-    /** 打卡类型常量：全部。 */
+    /**
+     * 字段说明：考勤打卡类型全部。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     public static final int CHECKIN_TYPE_ALL = 3;
 
+    /**
+     * 字段说明：企业微信企业微信service。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final WxCpService wxCpService;
+    /**
+     * 字段说明：执行器。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final Executor executor;
+    /**
+     * 字段说明：配置选项。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final WxCheckinQueryOptions options;
 
     /**
-     * 构造方法。
+     * 创建 考勤打卡查询util工具实例。
      *
-     * @param wxCpService 主 WxCpService
-     * @param executor    异步执行器（由 Spring 注入 qywxCheckinExecutor）
-     * @param options     查询参数
+     * @param wxCpService 企业微信企业微信service
+     * @param executor 执行器
+     * @param options 配置选项
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public WxCheckinQueryUtil(WxCpService wxCpService, Executor executor, WxCheckinQueryOptions options) {
         this.wxCpService = wxCpService;
@@ -79,10 +115,13 @@ public class WxCheckinQueryUtil {
     // -------------------- getCheckinGroups --------------------
 
     /**
-     * 拉取企业全部考勤组配置。
+     * 获取考勤打卡考勤组列表。
      *
-     * @return 考勤组列表，可能为空
-     * @throws WxErrorException 调用企业微信失败
+     * @return 考勤打卡考勤组列表
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxCheckinGroupVO> getCheckinGroups() throws WxErrorException {
         List<WxCpCropCheckinOption> source = wxCpService.getOaService().getCropCheckinOption();
@@ -102,13 +141,16 @@ public class WxCheckinQueryUtil {
     // -------------------- getCheckinRecords --------------------
 
     /**
-     * 拉取原始打卡记录。
+     * 获取考勤打卡记录列表。
      *
-     * @param type    打卡类型（{@link #CHECKIN_TYPE_NORMAL} / {@link #CHECKIN_TYPE_OUTSIDE} / {@link #CHECKIN_TYPE_ALL}）
-     * @param start   开始时间
-     * @param end     结束时间
-     * @param userIds 用户 ID 集合
-     * @return 打卡记录查询结果
+     * @param type 类型
+     * @param start 查询开始时间
+     * @param end 查询结束时间
+     * @param userIds 成员 userId 集合
+     * @return 考勤打卡记录列表
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public WxCheckinRecordResult getCheckinRecords(int type, Date start, Date end, Collection<String> userIds) {
         List<String> normalized = normaliseUserIds(userIds);
@@ -158,35 +200,44 @@ public class WxCheckinQueryUtil {
     }
 
     /**
-     * {@link #CHECKIN_TYPE_ALL} 默认重载。
+     * 获取考勤打卡记录列表。
      *
-     * @param start   开始时间
-     * @param end     结束时间
-     * @param userIds 用户 ID 集合
-     * @return 打卡记录查询结果
+     * @param start 查询开始时间
+     * @param end 查询结束时间
+     * @param userIds 成员 userId 集合
+     * @return 考勤打卡记录列表
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public WxCheckinRecordResult getCheckinRecords(Date start, Date end, Collection<String> userIds) {
         return getCheckinRecords(CHECKIN_TYPE_ALL, start, end, userIds);
     }
 
     /**
-     * {@link WxDateRange} 重载，type=ALL。
+     * 获取考勤打卡记录列表。
      *
-     * @param range   时间范围
-     * @param userIds 用户 ID 集合
-     * @return 打卡记录查询结果
+     * @param range 范围
+     * @param userIds 成员 userId 集合
+     * @return 考勤打卡记录列表
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public WxCheckinRecordResult getCheckinRecords(WxDateRange range, Collection<String> userIds) {
         return getCheckinRecords(CHECKIN_TYPE_ALL, range.startTime(), range.endTime(), userIds);
     }
 
     /**
-     * {@link WxDateRange} + 指定 type 重载。
+     * 获取考勤打卡记录列表。
      *
-     * @param type    打卡类型
-     * @param range   时间范围
-     * @param userIds 用户 ID 集合
-     * @return 打卡记录查询结果
+     * @param type 类型
+     * @param range 范围
+     * @param userIds 成员 userId 集合
+     * @return 考勤打卡记录列表
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public WxCheckinRecordResult getCheckinRecords(int type, WxDateRange range, Collection<String> userIds) {
         return getCheckinRecords(type, range.startTime(), range.endTime(), userIds);
@@ -195,12 +246,15 @@ public class WxCheckinQueryUtil {
     // -------------------- getCheckinDayData --------------------
 
     /**
-     * 拉取指定 userId 在指定时间范围内的打卡日报。
+     * 获取考勤打卡天数据。
      *
-     * @param start   开始时间
-     * @param end     结束时间
-     * @param userIds 用户 ID 集合（内部自动去重 / 分批）
-     * @return 日报查询结果（含成功 + 失败批次）
+     * @param start 查询开始时间
+     * @param end 查询结束时间
+     * @param userIds 成员 userId 集合
+     * @return 考勤打卡天数据
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public WxCheckinDayDataResult getCheckinDayData(Date start, Date end, Collection<String> userIds) {
         List<String> normalized = normaliseUserIds(userIds);
@@ -252,11 +306,14 @@ public class WxCheckinQueryUtil {
     }
 
     /**
-     * {@link WxDateRange} 重载。
+     * 获取考勤打卡天数据。
      *
-     * @param range   时间范围
-     * @param userIds 用户 ID 集合
-     * @return 日报查询结果
+     * @param range 范围
+     * @param userIds 成员 userId 集合
+     * @return 考勤打卡天数据
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public WxCheckinDayDataResult getCheckinDayData(WxDateRange range, Collection<String> userIds) {
         return getCheckinDayData(range.startTime(), range.endTime(), userIds);
@@ -265,12 +322,15 @@ public class WxCheckinQueryUtil {
     // -------------------- getCheckinMonthData --------------------
 
     /**
-     * 拉取打卡月报。
+     * 获取考勤打卡月数据。
      *
-     * @param start   开始时间
-     * @param end     结束时间
-     * @param userIds 用户 ID 集合
-     * @return 月报查询结果
+     * @param start 查询开始时间
+     * @param end 查询结束时间
+     * @param userIds 成员 userId 集合
+     * @return 考勤打卡月数据
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public WxCheckinMonthDataResult getCheckinMonthData(Date start, Date end, Collection<String> userIds) {
         List<String> normalized = normaliseUserIds(userIds);
@@ -320,11 +380,14 @@ public class WxCheckinQueryUtil {
     }
 
     /**
-     * {@link WxDateRange} 重载。
+     * 获取考勤打卡月数据。
      *
-     * @param range   时间范围
-     * @param userIds 用户 ID 集合
-     * @return 月报查询结果
+     * @param range 范围
+     * @param userIds 成员 userId 集合
+     * @return 考勤打卡月数据
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public WxCheckinMonthDataResult getCheckinMonthData(WxDateRange range, Collection<String> userIds) {
         return getCheckinMonthData(range.startTime(), range.endTime(), userIds);
@@ -333,12 +396,15 @@ public class WxCheckinQueryUtil {
     // -------------------- getScheduleList --------------------
 
     /**
-     * 拉取排班信息。失败的批次仅 WARN 级别日志，不收集到返回值。
+     * 获取排班list。
      *
-     * @param start   开始时间
-     * @param end     结束时间
-     * @param userIds 用户 ID 集合
-     * @return 排班列表
+     * @param start 查询开始时间
+     * @param end 查询结束时间
+     * @param userIds 成员 userId 集合
+     * @return 排班list
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxCheckinScheduleListItemVO> getScheduleList(Date start, Date end, Collection<String> userIds) {
         List<String> normalized = normaliseUserIds(userIds);
@@ -386,11 +452,14 @@ public class WxCheckinQueryUtil {
     }
 
     /**
-     * {@link WxDateRange} 重载。
+     * 获取排班list。
      *
-     * @param range   时间范围
-     * @param userIds 用户 ID 集合
-     * @return 排班列表
+     * @param range 范围
+     * @param userIds 成员 userId 集合
+     * @return 排班list
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxCheckinScheduleListItemVO> getScheduleList(WxDateRange range, Collection<String> userIds) {
         return getScheduleList(range.startTime(), range.endTime(), userIds);
@@ -399,143 +468,191 @@ public class WxCheckinQueryUtil {
     // -------------------- 业务语义方法 --------------------
 
     /**
-     * 时段内迟到记录（按 {@code (userId, date)} 粒度展开）。
+     * 获取迟到persons。
      *
-     * @param start   开始时间
-     * @param end     结束时间
-     * @param userIds 用户 ID 集合
-     * @return 迟到记录列表
+     * @param start 查询开始时间
+     * @param end 查询结束时间
+     * @param userIds 成员 userId 集合
+     * @return 迟到persons
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxCheckinExceptionItemVO> getLatePersons(Date start, Date end, Collection<String> userIds) {
         return collectExceptions(start, end, userIds, WxCheckinExceptionTypeEnum.LATE);
     }
 
     /**
-     * {@link WxDateRange} 重载。
+     * 获取迟到persons。
      *
-     * @param range   时间范围
-     * @param userIds 用户 ID 集合
-     * @return 迟到记录列表
+     * @param range 范围
+     * @param userIds 成员 userId 集合
+     * @return 迟到persons
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxCheckinExceptionItemVO> getLatePersons(WxDateRange range, Collection<String> userIds) {
         return getLatePersons(range.startTime(), range.endTime(), userIds);
     }
 
     /**
-     * 时段内早退记录。
+     * 获取早退请假persons。
      *
-     * @param start   开始时间
-     * @param end     结束时间
-     * @param userIds 用户 ID 集合
-     * @return 早退记录列表
+     * @param start 查询开始时间
+     * @param end 查询结束时间
+     * @param userIds 成员 userId 集合
+     * @return 早退请假persons
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxCheckinExceptionItemVO> getEarlyLeavePersons(Date start, Date end, Collection<String> userIds) {
         return collectExceptions(start, end, userIds, WxCheckinExceptionTypeEnum.EARLY_LEAVE);
     }
 
     /**
-     * {@link WxDateRange} 重载。
+     * 获取早退请假persons。
      *
-     * @param range   时间范围
-     * @param userIds 用户 ID 集合
-     * @return 早退记录列表
+     * @param range 范围
+     * @param userIds 成员 userId 集合
+     * @return 早退请假persons
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxCheckinExceptionItemVO> getEarlyLeavePersons(WxDateRange range, Collection<String> userIds) {
         return getEarlyLeavePersons(range.startTime(), range.endTime(), userIds);
     }
 
     /**
-     * 时段内缺卡记录。
+     * 获取缺卡persons。
      *
-     * @param start   开始时间
-     * @param end     结束时间
-     * @param userIds 用户 ID 集合
-     * @return 缺卡记录列表
+     * @param start 查询开始时间
+     * @param end 查询结束时间
+     * @param userIds 成员 userId 集合
+     * @return 缺卡persons
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxCheckinExceptionItemVO> getMissingCardPersons(Date start, Date end, Collection<String> userIds) {
         return collectExceptions(start, end, userIds, WxCheckinExceptionTypeEnum.MISSING_CARD);
     }
 
     /**
-     * {@link WxDateRange} 重载。
+     * 获取缺卡persons。
      *
-     * @param range   时间范围
-     * @param userIds 用户 ID 集合
-     * @return 缺卡记录列表
+     * @param range 范围
+     * @param userIds 成员 userId 集合
+     * @return 缺卡persons
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxCheckinExceptionItemVO> getMissingCardPersons(WxDateRange range, Collection<String> userIds) {
         return getMissingCardPersons(range.startTime(), range.endTime(), userIds);
     }
 
     /**
-     * 时段内旷工记录。
+     * 获取旷工persons。
      *
-     * @param start   开始时间
-     * @param end     结束时间
-     * @param userIds 用户 ID 集合
-     * @return 旷工记录列表
+     * @param start 查询开始时间
+     * @param end 查询结束时间
+     * @param userIds 成员 userId 集合
+     * @return 旷工persons
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxCheckinExceptionItemVO> getAbsentPersons(Date start, Date end, Collection<String> userIds) {
         return collectExceptions(start, end, userIds, WxCheckinExceptionTypeEnum.ABSENT);
     }
 
     /**
-     * {@link WxDateRange} 重载。
+     * 获取旷工persons。
      *
-     * @param range   时间范围
-     * @param userIds 用户 ID 集合
-     * @return 旷工记录列表
+     * @param range 范围
+     * @param userIds 成员 userId 集合
+     * @return 旷工persons
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxCheckinExceptionItemVO> getAbsentPersons(WxDateRange range, Collection<String> userIds) {
         return getAbsentPersons(range.startTime(), range.endTime(), userIds);
     }
 
     /**
-     * 时段内地点异常记录。
+     * 获取地点异常列表。
      *
-     * @param start   开始时间
-     * @param end     结束时间
-     * @param userIds 用户 ID 集合
-     * @return 地点异常记录列表
+     * @param start 查询开始时间
+     * @param end 查询结束时间
+     * @param userIds 成员 userId 集合
+     * @return 地点异常列表
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxCheckinExceptionItemVO> getLocationExceptions(Date start, Date end, Collection<String> userIds) {
         return collectExceptions(start, end, userIds, WxCheckinExceptionTypeEnum.LOCATION_EXCEPTION);
     }
 
     /**
-     * {@link WxDateRange} 重载。
+     * 获取地点异常列表。
      *
-     * @param range   时间范围
-     * @param userIds 用户 ID 集合
-     * @return 地点异常记录列表
+     * @param range 范围
+     * @param userIds 成员 userId 集合
+     * @return 地点异常列表
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxCheckinExceptionItemVO> getLocationExceptions(WxDateRange range, Collection<String> userIds) {
         return getLocationExceptions(range.startTime(), range.endTime(), userIds);
     }
 
     /**
-     * 时段内设备异常记录。
+     * 获取设备异常列表。
      *
-     * @param start   开始时间
-     * @param end     结束时间
-     * @param userIds 用户 ID 集合
-     * @return 设备异常记录列表
+     * @param start 查询开始时间
+     * @param end 查询结束时间
+     * @param userIds 成员 userId 集合
+     * @return 设备异常列表
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxCheckinExceptionItemVO> getDeviceExceptions(Date start, Date end, Collection<String> userIds) {
         return collectExceptions(start, end, userIds, WxCheckinExceptionTypeEnum.DEVICE_EXCEPTION);
     }
 
     /**
-     * {@link WxDateRange} 重载。
+     * 获取设备异常列表。
      *
-     * @param range   时间范围
-     * @param userIds 用户 ID 集合
-     * @return 设备异常记录列表
+     * @param range 范围
+     * @param userIds 成员 userId 集合
+     * @return 设备异常列表
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxCheckinExceptionItemVO> getDeviceExceptions(WxDateRange range, Collection<String> userIds) {
         return getDeviceExceptions(range.startTime(), range.endTime(), userIds);
     }
 
+    /**
+     * 执行 collectExceptions 相关逻辑。
+     *
+     * @param start 查询开始时间
+     * @param end 查询结束时间
+     * @param userIds 成员 userId 集合
+     * @param filter filter
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<WxCheckinExceptionItemVO> collectExceptions(Date start, Date end,
                                                              Collection<String> userIds,
                                                              WxCheckinExceptionTypeEnum filter) {
@@ -550,12 +667,15 @@ public class WxCheckinQueryUtil {
     // -------------------- getAttendanceReport --------------------
 
     /**
-     * 一次性聚合考勤报表。底层只调一次 {@code getcheckin_daydata}，按异常类型分桶。
+     * 获取考勤报表。
      *
-     * @param start   开始时间
-     * @param end     结束时间
-     * @param userIds 用户 ID 集合
-     * @return 聚合报表
+     * @param start 查询开始时间
+     * @param end 查询结束时间
+     * @param userIds 成员 userId 集合
+     * @return 考勤报表
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public WxAttendanceReportVO getAttendanceReport(Date start, Date end, Collection<String> userIds) {
         List<String> normalized = normaliseUserIds(userIds);
@@ -613,11 +733,14 @@ public class WxCheckinQueryUtil {
     }
 
     /**
-     * {@link WxDateRange} 重载。
+     * 获取考勤报表。
      *
-     * @param range   时间范围
-     * @param userIds 用户 ID 集合
-     * @return 聚合报表
+     * @param range 范围
+     * @param userIds 成员 userId 集合
+     * @return 考勤报表
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public WxAttendanceReportVO getAttendanceReport(WxDateRange range, Collection<String> userIds) {
         return getAttendanceReport(range.startTime(), range.endTime(), userIds);
@@ -625,6 +748,15 @@ public class WxCheckinQueryUtil {
 
     // -------------------- fan-out 引擎 --------------------
 
+    /**
+     * 执行 normaliseUserIds 相关逻辑。
+     *
+     * @param in in
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static List<String> normaliseUserIds(Collection<String> in) {
         if (in == null || in.isEmpty()) {
             return List.of();
@@ -637,6 +769,15 @@ public class WxCheckinQueryUtil {
                 .toList();
     }
 
+    /**
+     * 校验范围。
+     *
+     * @param start 查询开始时间
+     * @param end 查询结束时间
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static void validateRange(Date start, Date end) {
         if (start == null || end == null) {
             throw new IllegalArgumentException("start and end must not be null");
@@ -646,6 +787,17 @@ public class WxCheckinQueryUtil {
         }
     }
 
+    /**
+     * 执行 segmentDates 相关逻辑。
+     *
+     * @param start 查询开始时间
+     * @param end 查询结束时间
+     * @param days 向前追溯的天数
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static List<WxDateRange> segmentDates(Date start, Date end, int days) {
         int safeDays = Math.max(1, days);
         long stepMillis = safeDays * 86_400_000L;
@@ -662,6 +814,16 @@ public class WxCheckinQueryUtil {
         return out;
     }
 
+    /**
+     * 执行 partitionUsers 相关逻辑。
+     *
+     * @param userIds 成员 userId 集合
+     * @param batchSize 批次大小
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static List<List<String>> partitionUsers(List<String> userIds, int batchSize) {
         int safe = Math.max(1, batchSize);
         List<List<String>> out = new ArrayList<>();
@@ -671,6 +833,16 @@ public class WxCheckinQueryUtil {
         return out;
     }
 
+    /**
+     * 执行 withRetry 相关逻辑。
+     *
+     * @param task task
+     * @param limiter limiter
+     * @return fanoutoutcome<t>
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private <T> FanoutOutcome<T> withRetry(FanoutTask<T> task, SimpleRateLimiter limiter) {
         int max = Math.max(1, options.maxRetryAttempts());
         Throwable last = null;
@@ -698,6 +870,15 @@ public class WxCheckinQueryUtil {
                 task.range().startTime(), task.range().endTime(), task.userIds(), max, type, msg));
     }
 
+    /**
+     * 执行 exponentialBackoff 相关逻辑。
+     *
+     * @param attempt attempt
+     * @return long
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private long exponentialBackoff(int attempt) {
         long base = Math.max(0L, options.retryBackoffMillis());
         if (base == 0L) {
@@ -707,6 +888,15 @@ public class WxCheckinQueryUtil {
         return Math.min(backoff, base * 32);
     }
 
+    /**
+     * 执行 unwrap 相关逻辑。
+     *
+     * @param t t
+     * @return throwable
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static Throwable unwrap(Throwable t) {
         Throwable c = t;
         while (c.getCause() != null && c != c.getCause()) {
@@ -715,22 +905,53 @@ public class WxCheckinQueryUtil {
         return c;
     }
 
+    /**
+     * 记录说明：fanouttask。
+     *
+     * @param range 范围
+     * @param userIds 成员 userId 列表
+     * @param callable callable
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private record FanoutTask<T>(WxDateRange range, List<String> userIds, Callable<T> callable) {
     }
 
+    /**
+     * 记录说明：fanoutoutcome。
+     *
+     * @param success success
+     * @param failure failure
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private record FanoutOutcome<T>(T success, WxCheckinFetchFailure failure) {
     }
 
     // -------------------- 内部工具 --------------------
 
     /**
-     * 简易令牌桶限流器（与 WxApprovalQueryUtil / WxHrRosterQueryUtil 保持一致的内嵌实现）。
+     * 类说明：simpleratelimiter。
      *
-     * @author CY
+     * @author cy
      * Copyright (c) CY
      */
     static final class SimpleRateLimiter {
+        /**
+         * 字段说明：intervalnanos。
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
         private final long intervalNanos;
+        /**
+         * 字段说明：nextallowednanos。
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
         private long nextAllowedNanos;
 
         SimpleRateLimiter(double requestsPerSecond) {
@@ -738,6 +959,12 @@ public class WxCheckinQueryUtil {
             this.nextAllowedNanos = System.nanoTime();
         }
 
+        /**
+         * 执行 acquire 相关逻辑。
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
         synchronized void acquire() {
             if (intervalNanos <= 0L) {
                 return;

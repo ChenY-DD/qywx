@@ -5,22 +5,25 @@ import org.cy.qywx.vo.WxCheckinDayDataVO;
 import java.util.List;
 
 /**
- * 打卡日报查询结果，包含成功列表与失败批次列表。
+ * 记录说明：考勤打卡天数据结果。
  *
- * @author CY
+ * @param dayDataList 天数据list
+ * @param failures 批量查询失败记录列表
+ *
+ * @author cy
  * Copyright (c) CY
- *
- * @param dayDataList 成功获取的日报数据
- * @param failures    失败的批次
  */
 public record WxCheckinDayDataResult(
         List<WxCheckinDayDataVO> dayDataList,
         List<WxCheckinFetchFailure> failures
 ) {
     /**
-     * 返回空结果。
+     * 创建不含任何成功和失败数据的空结果。
      *
-     * @return 空结果
+     * @return 考勤打卡天数据结果
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public static WxCheckinDayDataResult empty() {
         return new WxCheckinDayDataResult(List.of(), List.of());

@@ -5,22 +5,25 @@ import org.cy.qywx.vo.WxCheckinMonthDataVO;
 import java.util.List;
 
 /**
- * 打卡月报查询结果，包含成功列表与失败批次列表。
+ * 记录说明：考勤打卡月数据结果。
  *
- * @author CY
+ * @param monthDataList 月数据list
+ * @param failures 批量查询失败记录列表
+ *
+ * @author cy
  * Copyright (c) CY
- *
- * @param monthDataList 成功获取的月报数据
- * @param failures      失败的批次
  */
 public record WxCheckinMonthDataResult(
         List<WxCheckinMonthDataVO> monthDataList,
         List<WxCheckinFetchFailure> failures
 ) {
     /**
-     * 返回空结果。
+     * 创建不含任何成功和失败数据的空结果。
      *
-     * @return 空结果
+     * @return 考勤打卡月数据结果
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public static WxCheckinMonthDataResult empty() {
         return new WxCheckinMonthDataResult(List.of(), List.of());

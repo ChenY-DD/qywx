@@ -6,28 +6,59 @@ import java.io.Serializable;
 import java.util.Date;
 
 /**
- * 排班列表单项 VO（来源 getcheckinschedulist）。
+ * 类说明：考勤打卡排班list项业务视图对象。
  *
- * @author CY
+ * @author cy
  * Copyright (c) CY
  */
 @Data
 public class WxCheckinScheduleListItemVO implements Serializable {
 
+    /**
+     * 字段说明：序列化版本号。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static final long serialVersionUID = 1L;
 
-    /** 用户 ID */
+    /**
+     * 字段说明：成员 userId。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String userId;
 
-    /** 排班日期 */
+    /**
+     * 字段说明：排班日期。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Date scheduleDate;
 
-    /** 考勤组 ID */
+    /**
+     * 字段说明：考勤组ID。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Integer groupId;
 
-    /** 班次 ID（0 表示休息） */
+    /**
+     * 字段说明：排班ID。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Integer scheduleId;
 
-    /** 班次名称 */
+    /**
+     * 字段说明：排班名称。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String scheduleName;
 }

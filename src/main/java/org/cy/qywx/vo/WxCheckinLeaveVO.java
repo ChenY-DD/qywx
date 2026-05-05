@@ -5,28 +5,59 @@ import lombok.Data;
 import java.io.Serializable;
 
 /**
- * 请假 / 外出项 VO（来源 holiday_infos）。
+ * 类说明：考勤打卡请假业务视图对象。
  *
- * @author CY
+ * @author cy
  * Copyright (c) CY
  */
 @Data
 public class WxCheckinLeaveVO implements Serializable {
 
+    /**
+     * 字段说明：序列化版本号。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static final long serialVersionUID = 1L;
 
-    /** 审批单号 */
+    /**
+     * 字段说明：审批number。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String spNumber;
 
-    /** 假期类型描述 */
+    /**
+     * 字段说明：审批标题。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String spTitle;
 
-    /** 假期时长（秒） */
+    /**
+     * 字段说明：时长秒。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Integer durationSeconds;
 
-    /** 开始时间（unix 时间戳） */
+    /**
+     * 字段说明：开始时间。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Long startTime;
 
-    /** 结束时间（unix 时间戳） */
+    /**
+     * 字段说明：结束时间。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Long endTime;
 }

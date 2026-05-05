@@ -28,21 +28,30 @@ import java.util.GregorianCalendar;
 import java.util.List;
 
 /**
- * WxJava 考勤 Bean 到本地 VO 的静态转换器。所有方法对 null 入参返回 {@code null}（或空集合，按方法语义）。
+ * 类说明：考勤打卡converter工具。
  *
- * @author CY
+ * @author cy
  * Copyright (c) CY
  */
 public final class WxCheckinConverter {
 
+    /**
+     * 创建 考勤打卡converter工具实例。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private WxCheckinConverter() {
     }
 
     /**
-     * 将单条原始打卡 bean 转为 {@link WxCheckinRecordVO}。
+     * 执行 fromRecord 相关逻辑。
      *
-     * @param src 原始 bean
-     * @return VO；入参为 null 时返回 null
+     * @param src src
+     * @return 考勤打卡记录业务视图对象
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public static WxCheckinRecordVO fromRecord(WxCpCheckinData src) {
         if (src == null) {
@@ -72,10 +81,13 @@ public final class WxCheckinConverter {
     }
 
     /**
-     * 将日报 bean 转为 {@link WxCheckinDayDataVO}。
+     * 执行 fromDayData 相关逻辑。
      *
-     * @param src 日报 bean
-     * @return VO；入参为 null 时返回 null
+     * @param src src
+     * @return 考勤打卡天数据业务视图对象
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public static WxCheckinDayDataVO fromDayData(WxCpCheckinDayData src) {
         if (src == null) {
@@ -108,10 +120,13 @@ public final class WxCheckinConverter {
     }
 
     /**
-     * 将月报 bean 转为 {@link WxCheckinMonthDataVO}。
+     * 执行 fromMonthData 相关逻辑。
      *
-     * @param src 月报 bean
-     * @return VO；入参为 null 时返回 null
+     * @param src src
+     * @return 考勤打卡月数据业务视图对象
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public static WxCheckinMonthDataVO fromMonthData(WxCpCheckinMonthData src) {
         if (src == null) {
@@ -140,10 +155,13 @@ public final class WxCheckinConverter {
     }
 
     /**
-     * 将考勤组 bean 转为 {@link WxCheckinGroupVO}。
+     * 执行 fromGroup 相关逻辑。
      *
-     * @param src 考勤组 bean
-     * @return VO；入参为 null 时返回 null
+     * @param src src
+     * @return 考勤打卡考勤组业务视图对象
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public static WxCheckinGroupVO fromGroup(WxCpCropCheckinOption src) {
         if (src == null) {
@@ -175,10 +193,13 @@ public final class WxCheckinConverter {
     }
 
     /**
-     * 将排班 bean 转为 {@link WxCheckinScheduleListItemVO}。
+     * 执行 fromScheduleItem 相关逻辑。
      *
-     * @param src 排班 bean
-     * @return VO；入参为 null 时返回 null
+     * @param src src
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public static WxCheckinScheduleListItemVO fromScheduleItem(WxCpCheckinSchedule src) {
         if (src == null) {
@@ -192,11 +213,14 @@ public final class WxCheckinConverter {
     }
 
     /**
-     * 将日报 VO 中嵌入的异常项展开为业务语义层的扁平异常行。
+     * 执行 explodeExceptions 相关逻辑。
      *
-     * @param dayData 日报 VO
-     * @param filter  仅保留指定异常类型；传 null 表示全部保留
-     * @return 扁平异常行列表，可能为空
+     * @param dayData 天数据
+     * @param filter filter
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public static List<WxCheckinExceptionItemVO> explodeExceptions(WxCheckinDayDataVO dayData,
                                                                    WxCheckinExceptionTypeEnum filter) {
@@ -227,6 +251,15 @@ public final class WxCheckinConverter {
 
     // -------------------- private helpers --------------------
 
+    /**
+     * 转换为天异常list。
+     *
+     * @param source source
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static List<WxCheckinExceptionVO> toDayExceptionList(
             List<WxCpCheckinDayData.ExceptionInfos> source) {
         if (source == null || source.isEmpty()) {
@@ -246,6 +279,15 @@ public final class WxCheckinConverter {
         return out;
     }
 
+    /**
+     * 转换为月异常list。
+     *
+     * @param source source
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static List<WxCheckinExceptionVO> toMonthExceptionList(
             List<WxCpCheckinMonthData.ExceptionInfo> source) {
         if (source == null || source.isEmpty()) {
@@ -265,6 +307,15 @@ public final class WxCheckinConverter {
         return out;
     }
 
+    /**
+     * 转换为请假listfrom假期infos。
+     *
+     * @param source source
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static List<WxCheckinLeaveVO> toLeaveListFromHolidayInfos(
             List<WxCpCheckinDayData.HolidayInfos> source) {
         if (source == null || source.isEmpty()) {
@@ -283,6 +334,15 @@ public final class WxCheckinConverter {
         return out;
     }
 
+    /**
+     * 执行 extractFirstHolidayTitleText 相关逻辑。
+     *
+     * @param h h
+     * @return string
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static String extractFirstHolidayTitleText(WxCpCheckinDayData.HolidayInfos h) {
         if (h == null || h.getSpTitle() == null || h.getSpTitle().getData() == null
                 || h.getSpTitle().getData().isEmpty()) {
@@ -291,6 +351,15 @@ public final class WxCheckinConverter {
         return h.getSpTitle().getData().get(0).getText();
     }
 
+    /**
+     * 转换为加班from天。
+     *
+     * @param source source
+     * @return 考勤打卡加班业务视图对象
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static WxCheckinOvertimeVO toOvertimeFromDay(WxCpCheckinDayData.OtInfo source) {
         if (source == null) {
             return null;
@@ -302,6 +371,15 @@ public final class WxCheckinConverter {
         return vo;
     }
 
+    /**
+     * 转换为审批listfrom天。
+     *
+     * @param source source
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static List<WxCheckinApprovalItemVO> toApprovalListFromDay(
             List<WxCpCheckinDayData.SpItem> source) {
         if (source == null || source.isEmpty()) {
@@ -321,6 +399,15 @@ public final class WxCheckinConverter {
         return out;
     }
 
+    /**
+     * 转换为审批listfrom月。
+     *
+     * @param source source
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static List<WxCheckinApprovalItemVO> toApprovalListFromMonth(
             List<WxCpCheckinMonthData.SpItem> source) {
         if (source == null || source.isEmpty()) {
@@ -339,6 +426,15 @@ public final class WxCheckinConverter {
         return out;
     }
 
+    /**
+     * 将特殊工作日配置转换为日期列表。
+     *
+     * @param source source
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static List<Date> speWorkdaysToDates(
             List<me.chanjar.weixin.cp.bean.oa.WxCpCheckinGroupBase.SpeWorkday> source) {
         if (source == null || source.isEmpty()) {
@@ -353,6 +449,15 @@ public final class WxCheckinConverter {
         return out;
     }
 
+    /**
+     * 将特殊休息日配置转换为日期列表。
+     *
+     * @param source source
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static List<Date> speOffDaysToDates(
             List<me.chanjar.weixin.cp.bean.oa.WxCpCheckinGroupBase.SpeOffDay> source) {
         if (source == null || source.isEmpty()) {
@@ -367,6 +472,15 @@ public final class WxCheckinConverter {
         return out;
     }
 
+    /**
+     * 拆分semicolon。
+     *
+     * @param value 值
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static List<String> splitSemicolon(String value) {
         if (value == null || value.isBlank()) {
             return Collections.emptyList();
@@ -377,6 +491,15 @@ public final class WxCheckinConverter {
                 .toList();
     }
 
+    /**
+     * 执行 unixToDate 相关逻辑。
+     *
+     * @param seconds 秒
+     * @return 日期
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static Date unixToDate(Long seconds) {
         if (seconds == null || seconds <= 0L) {
             return null;
@@ -384,6 +507,15 @@ public final class WxCheckinConverter {
         return new Date(seconds * 1000L);
     }
 
+    /**
+     * 执行 unixIntToDate 相关逻辑。
+     *
+     * @param seconds 秒
+     * @return 日期
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static Date unixIntToDate(Integer seconds) {
         if (seconds == null || seconds <= 0) {
             return null;
@@ -391,6 +523,15 @@ public final class WxCheckinConverter {
         return new Date(((long) seconds) * 1000L);
     }
 
+    /**
+     * 执行 yearMonthToFirstOfMonth 相关逻辑。
+     *
+     * @param yearMonth year月
+     * @return 日期
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static Date yearMonthToFirstOfMonth(Integer yearMonth) {
         if (yearMonth == null || yearMonth <= 0) {
             return null;

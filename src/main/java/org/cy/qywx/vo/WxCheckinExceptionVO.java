@@ -6,22 +6,43 @@ import org.cy.qywx.vo.enums.WxCheckinExceptionTypeEnum;
 import java.io.Serializable;
 
 /**
- * 嵌入在日报 / 月报内的异常项 VO。
+ * 类说明：考勤打卡异常业务视图对象。
  *
- * @author CY
+ * @author cy
  * Copyright (c) CY
  */
 @Data
 public class WxCheckinExceptionVO implements Serializable {
 
+    /**
+     * 字段说明：序列化版本号。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static final long serialVersionUID = 1L;
 
-    /** 异常类型枚举 */
+    /**
+     * 字段说明：异常类型。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private WxCheckinExceptionTypeEnum exceptionType;
 
-    /** 当日 / 当月异常次数 */
+    /**
+     * 字段说明：count。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Integer count;
 
-    /** 异常时长（秒） */
+    /**
+     * 字段说明：时长秒。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Integer durationSeconds;
 }

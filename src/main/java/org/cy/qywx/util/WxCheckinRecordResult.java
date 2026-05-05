@@ -5,22 +5,25 @@ import org.cy.qywx.vo.WxCheckinRecordVO;
 import java.util.List;
 
 /**
- * 打卡记录查询结果，包含成功列表与失败批次列表。
+ * 记录说明：考勤打卡记录结果。
  *
- * @author CY
+ * @param records 记录列表
+ * @param failures 批量查询失败记录列表
+ *
+ * @author cy
  * Copyright (c) CY
- *
- * @param records  成功获取的打卡记录
- * @param failures 失败的批次
  */
 public record WxCheckinRecordResult(
         List<WxCheckinRecordVO> records,
         List<WxCheckinFetchFailure> failures
 ) {
     /**
-     * 返回空结果。
+     * 创建不含任何成功和失败数据的空结果。
      *
-     * @return 空结果
+     * @return 考勤打卡记录结果
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public static WxCheckinRecordResult empty() {
         return new WxCheckinRecordResult(List.of(), List.of());

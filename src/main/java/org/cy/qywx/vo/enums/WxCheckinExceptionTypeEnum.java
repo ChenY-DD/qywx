@@ -1,11 +1,9 @@
 package org.cy.qywx.vo.enums;
 
 /**
- * 打卡日报异常类型枚举。
- * <p>对应企业微信 {@code getcheckin_daydata} 接口返回的 {@code exception_infos[].exception} 字段：
- * 1=迟到、2=早退、3=缺卡、4=旷工、5=地点异常、6=设备异常。</p>
+ * 枚举说明：考勤打卡异常类型??。
  *
- * @author CY
+ * @author cy
  * Copyright (c) CY
  */
 public enum WxCheckinExceptionTypeEnum {
@@ -17,7 +15,19 @@ public enum WxCheckinExceptionTypeEnum {
     LOCATION_EXCEPTION(5, "地点异常"),
     DEVICE_EXCEPTION(6, "设备异常");
 
+    /**
+     * 字段说明：编码。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final int code;
+    /**
+     * 字段说明：描述。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final String description;
 
     WxCheckinExceptionTypeEnum(int code, String description) {
@@ -26,28 +36,37 @@ public enum WxCheckinExceptionTypeEnum {
     }
 
     /**
-     * 获取枚举对应的企业微信 API 数值。
+     * 获取编码。
      *
-     * @return code
+     * @return 编码
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public int getCode() {
         return code;
     }
 
     /**
-     * 获取枚举的中文描述。
+     * 获取描述。
      *
-     * @return 中文说明
+     * @return 描述
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public String getDescription() {
         return description;
     }
 
     /**
-     * 根据企业微信数值反查枚举。
+     * 执行 fromCode 相关逻辑。
      *
-     * @param code 企业微信 exception 数值
-     * @return 对应枚举；未匹配返回 {@code null}
+     * @param code 编码
+     * @return 考勤打卡异常类型??
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public static WxCheckinExceptionTypeEnum fromCode(Integer code) {
         if (code == null) {

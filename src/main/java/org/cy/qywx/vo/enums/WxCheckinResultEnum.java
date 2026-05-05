@@ -1,11 +1,9 @@
 package org.cy.qywx.vo.enums;
 
 /**
- * 单次打卡结果枚举。
- * <p>对应企业微信 {@code getcheckindata} 接口返回的 {@code exception_type} 字段（中文字符串）。
- * 该字段企业微信文档允许多值分号分隔，本工具按第一个匹配项映射；未识别的字符串归到 {@link #UNKNOWN}。</p>
+ * 枚举说明：考勤打卡结果??。
  *
- * @author CY
+ * @author cy
  * Copyright (c) CY
  */
 public enum WxCheckinResultEnum {
@@ -17,6 +15,12 @@ public enum WxCheckinResultEnum {
     INVALID("无效"),
     UNKNOWN("未知");
 
+    /**
+     * 字段说明：文本。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final String text;
 
     WxCheckinResultEnum(String text) {
@@ -24,19 +28,25 @@ public enum WxCheckinResultEnum {
     }
 
     /**
-     * 获取枚举对应的企业微信 API 中文文本。
+     * 获取文本。
      *
-     * @return 中文文本
+     * @return 文本
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public String getText() {
         return text;
     }
 
     /**
-     * 根据企业微信返回的中文字符串反查枚举。
+     * 执行 fromText 相关逻辑。
      *
-     * @param text 中文字符串，可能含分号分隔的多个值
-     * @return 第一个匹配的枚举；空 / null / 未匹配返回 {@link #UNKNOWN}
+     * @param text 文本
+     * @return 考勤打卡结果??
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public static WxCheckinResultEnum fromText(String text) {
         if (text == null || text.isBlank()) {

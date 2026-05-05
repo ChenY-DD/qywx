@@ -9,11 +9,32 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * 类说明：contactconverter工具。
+ *
+ * @author cy
+ * Copyright (c) CY
+ */
 public final class WxContactConverter {
 
+    /**
+     * 创建 contactconverter工具实例。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private WxContactConverter() {
     }
 
+    /**
+     * 将企业微信原始对象转换为业务对象。
+     *
+     * @param depart 部门
+     * @return 部门业务视图对象
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     public static WxDepartmentVO from(WxCpDepart depart) {
         if (depart == null) {
             return null;
@@ -29,6 +50,15 @@ public final class WxContactConverter {
         return vo;
     }
 
+    /**
+     * 将企业微信原始对象转换为业务对象。
+     *
+     * @param user 成员
+     * @return 成员业务视图对象
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     public static WxUserVO from(WxCpUser user) {
         if (user == null) {
             return null;
@@ -59,14 +89,41 @@ public final class WxContactConverter {
         return vo;
     }
 
+    /**
+     * 转换为stringlist。
+     *
+     * @param array array
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static List<String> toStringList(String[] array) {
         return array == null || array.length == 0 ? Collections.emptyList() : Arrays.asList(array);
     }
 
+    /**
+     * 转换为longlist。
+     *
+     * @param array array
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static List<Long> toLongList(Long[] array) {
         return array == null || array.length == 0 ? Collections.emptyList() : Arrays.asList(array);
     }
 
+    /**
+     * 执行 parseLong 相关逻辑。
+     *
+     * @param value 值
+     * @return long
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static Long parseLong(String value) {
         if (value == null || value.isBlank()) {
             return null;

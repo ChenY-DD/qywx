@@ -7,19 +7,37 @@ import java.time.ZoneId;
 import java.util.Date;
 
 /**
- * 日期范围工具类，提供当天、近三天、当月、当年以及自定义时间范围的快速构造。
+ * 类说明：日期范围utils。
+ *
+ * @author cy
+ * Copyright (c) CY
  */
 public final class WxDateRangeUtils {
 
+    /**
+     * 字段说明：默认时区。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static final ZoneId DEFAULT_ZONE = ZoneId.systemDefault();
 
+    /**
+     * 创建 日期范围utils实例。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private WxDateRangeUtils() {
     }
 
     /**
-     * 获取“当天 00:00:00 到当前时刻”的时间范围。
+     * 转换为天。
      *
-     * @return 当天时间范围
+     * @return 日期范围
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public static WxDateRange today() {
         LocalDateTime now = LocalDateTime.now(DEFAULT_ZONE);
@@ -27,19 +45,25 @@ public final class WxDateRangeUtils {
     }
 
     /**
-     * 获取“当前时刻向前 3 天”的时间范围。
+     * 执行 last3Days 相关逻辑。
      *
-     * @return 近三天时间范围
+     * @return 日期范围
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public static WxDateRange last3Days() {
         return lastDays(3);
     }
 
     /**
-     * 获取“当前时刻向前 N 天”的时间范围。
+     * 执行 lastDays 相关逻辑。
      *
-     * @param days 天数
-     * @return 近 N 天时间范围
+     * @param days 向前追溯的天数
+     * @return 日期范围
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public static WxDateRange lastDays(int days) {
         if (days <= 0) {
@@ -50,9 +74,12 @@ public final class WxDateRangeUtils {
     }
 
     /**
-     * 获取“本月 1 号 00:00:00 到当前时刻”的时间范围。
+     * 执行 currentMonth 相关逻辑。
      *
-     * @return 当月时间范围
+     * @return 日期范围
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public static WxDateRange currentMonth() {
         LocalDateTime now = LocalDateTime.now(DEFAULT_ZONE);
@@ -61,9 +88,12 @@ public final class WxDateRangeUtils {
     }
 
     /**
-     * 获取“今年 1 月 1 日 00:00:00 到当前时刻”的时间范围。
+     * 执行 currentYear 相关逻辑。
      *
-     * @return 当年时间范围
+     * @return 日期范围
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public static WxDateRange currentYear() {
         LocalDateTime now = LocalDateTime.now(DEFAULT_ZONE);
@@ -72,33 +102,42 @@ public final class WxDateRangeUtils {
     }
 
     /**
-     * 使用 {@link Date} 自定义时间范围。
+     * 执行 custom 相关逻辑。
      *
-     * @param startTime 开始时间
-     * @param endTime 结束时间
-     * @return 自定义时间范围
+     * @param startTime 查询开始时间
+     * @param endTime 查询结束时间
+     * @return 日期范围
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public static WxDateRange custom(Date startTime, Date endTime) {
         return new WxDateRange(startTime, endTime);
     }
 
     /**
-     * 使用 {@link LocalDateTime} 自定义时间范围。
+     * 执行 custom 相关逻辑。
      *
-     * @param startTime 开始时间
-     * @param endTime 结束时间
-     * @return 自定义时间范围
+     * @param startTime 查询开始时间
+     * @param endTime 查询结束时间
+     * @return 日期范围
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public static WxDateRange custom(LocalDateTime startTime, LocalDateTime endTime) {
         return custom(toDate(startTime), toDate(endTime));
     }
 
     /**
-     * 使用 {@link LocalDate} 自定义时间范围，结束时间自动扩展到结束日期当天的最后时刻。
+     * 执行 custom 相关逻辑。
      *
      * @param startDate 开始日期
      * @param endDate 结束日期
-     * @return 自定义时间范围
+     * @return 日期范围
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public static WxDateRange custom(LocalDate startDate, LocalDate endDate) {
         return custom(
@@ -107,6 +146,15 @@ public final class WxDateRangeUtils {
         );
     }
 
+    /**
+     * 转换为日期。
+     *
+     * @param dateTime 日期时间
+     * @return 日期
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static Date toDate(LocalDateTime dateTime) {
         return Date.from(dateTime.atZone(DEFAULT_ZONE).toInstant());
     }

@@ -6,16 +6,27 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 花名册批量查询结果。
+ * 记录说明：HR花名册结果。
  *
- * @param staffInfo 成功项，key 为 userId，value 为花名册原始 JSON
- * @param failures 失败项列表
+ * @param staffInfo 员工信息
+ * @param failures 批量查询失败记录列表
+ *
+ * @author cy
+ * Copyright (c) CY
  */
 public record WxHrRosterResult(
         Map<String, JsonNode> staffInfo,
         List<WxHrRosterFetchFailure> failures
 ) {
 
+    /**
+     * 创建不含任何成功和失败数据的空结果。
+     *
+     * @return HR花名册结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     public static WxHrRosterResult empty() {
         return new WxHrRosterResult(Map.of(), List.of());
     }

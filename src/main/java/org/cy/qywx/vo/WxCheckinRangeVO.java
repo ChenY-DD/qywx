@@ -6,22 +6,43 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * 考勤组可用范围 VO（部门 / 标签 / userId 白名单）。
+ * 类说明：考勤打卡范围业务视图对象。
  *
- * @author CY
+ * @author cy
  * Copyright (c) CY
  */
 @Data
 public class WxCheckinRangeVO implements Serializable {
 
+    /**
+     * 字段说明：序列化版本号。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static final long serialVersionUID = 1L;
 
-    /** 部门 ID 列表（企业微信原文为字符串） */
+    /**
+     * 字段说明：partyID列表。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<String> partyIds;
 
-    /** 用户 ID 列表 */
+    /**
+     * 字段说明：成员 userId 列表。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<String> userIds;
 
-    /** 标签 ID 列表 */
+    /**
+     * 字段说明：tagID列表。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<Integer> tagIds;
 }

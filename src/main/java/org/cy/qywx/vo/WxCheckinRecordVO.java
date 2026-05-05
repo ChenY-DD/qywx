@@ -8,70 +8,171 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * 单条打卡记录 VO（来源 getcheckindata）。
+ * 类说明：考勤打卡记录业务视图对象。
  *
- * @author CY
+ * @author cy
  * Copyright (c) CY
  */
 @Data
 public class WxCheckinRecordVO implements Serializable {
 
+    /**
+     * 字段说明：序列化版本号。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static final long serialVersionUID = 1L;
 
-    /** 用户 ID */
+    /**
+     * 字段说明：成员 userId。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String userId;
 
-    /** 考勤组名称 */
+    /**
+     * 字段说明：考勤组名称。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String groupName;
 
-    /** 考勤组 ID */
+    /**
+     * 字段说明：考勤组ID。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Integer groupId;
 
-    /** 班次 ID */
+    /**
+     * 字段说明：排班ID。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Integer scheduleId;
 
-    /** 时段 ID */
+    /**
+     * 字段说明：时间轴ID。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Integer timelineId;
 
-    /** 打卡类型（上班打卡 / 下班打卡 / 外出打卡，企业微信原始字符串） */
+    /**
+     * 字段说明：考勤打卡类型。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String checkinType;
 
-    /** 打卡时间 */
+    /**
+     * 字段说明：实际打卡时间。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Date checkinTime;
 
-    /** 应打卡时间（仅排班 / 固定时段） */
+    /**
+     * 字段说明：排班应打卡时间。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Date schCheckinTime;
 
-    /** 打卡地点标题 */
+    /**
+     * 字段说明：地点标题。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String locationTitle;
 
-    /** 打卡地点详情 */
+    /**
+     * 字段说明：地点详情。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String locationDetail;
 
-    /** Wi-Fi 名称 */
+    /**
+     * 字段说明：Wi-Fi名称。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String wifiName;
 
-    /** Wi-Fi MAC */
+    /**
+     * 字段说明：Wi-FiMAC。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String wifiMac;
 
-    /** 备注 */
+    /**
+     * 字段说明：备注。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String notes;
 
-    /** 附件 mediaId 列表 */
+    /**
+     * 字段说明：媒体ID列表。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<String> mediaIds;
 
-    /** 设备 ID */
+    /**
+     * 字段说明：设备ID。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String deviceId;
 
-    /** 经度（实际值的 1_000_000 倍） */
+    /**
+     * 字段说明：经度。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Integer lng;
 
-    /** 纬度（实际值的 1_000_000 倍） */
+    /**
+     * 字段说明：纬度。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Integer lat;
 
-    /** 异常结果（首个匹配） */
+    /**
+     * 字段说明：异常结果。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private WxCheckinResultEnum exceptionResult;
 
-    /** 原始异常字符串（企业微信原文，多值分号分隔） */
+    /**
+     * 字段说明：raw异常类型。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String rawExceptionType;
 }

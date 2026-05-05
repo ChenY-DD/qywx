@@ -8,44 +8,99 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * 一次性聚合的考勤报表 VO。{@link org.cy.qywx.util.WxCheckinQueryUtil#getAttendanceReport}
- * 返回此结构，避免调用方为 6 种异常类型分别发起请求。
+ * 类说明：考勤报表业务视图对象。
  *
- * @author CY
+ * @author cy
  * Copyright (c) CY
  */
 @Data
 public class WxAttendanceReportVO implements Serializable {
 
+    /**
+     * 字段说明：序列化版本号。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static final long serialVersionUID = 1L;
 
-    /** 报表时间范围 */
+    /**
+     * 字段说明：范围。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private WxDateRange range;
 
-    /** 入参 userIds 去重后总数 */
+    /**
+     * 字段说明：总成员列表。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private int totalUsers;
 
-    /** 实际返回了日报的人数（无打卡的会缺失） */
+    /**
+     * 字段说明：已上报成员列表。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private int reportedUsers;
 
-    /** 迟到记录（按日扁平） */
+    /**
+     * 字段说明：迟到异常列表。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<WxCheckinExceptionItemVO> late;
 
-    /** 早退记录 */
+    /**
+     * 字段说明：早退异常列表。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<WxCheckinExceptionItemVO> earlyLeave;
 
-    /** 缺卡记录 */
+    /**
+     * 字段说明：缺卡异常列表。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<WxCheckinExceptionItemVO> missingCard;
 
-    /** 旷工记录 */
+    /**
+     * 字段说明：旷工异常列表。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<WxCheckinExceptionItemVO> absent;
 
-    /** 地点异常记录 */
+    /**
+     * 字段说明：地点异常列表。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<WxCheckinExceptionItemVO> locationException;
 
-    /** 设备异常记录 */
+    /**
+     * 字段说明：设备异常列表。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<WxCheckinExceptionItemVO> deviceException;
 
-    /** 失败的批次列表（如有） */
+    /**
+     * 字段说明：批量查询失败记录列表。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<WxCheckinFetchFailure> failures;
 }

@@ -27,20 +27,65 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Collectors;
 
 /**
- * 企业微信审批查询工具，封装审批单号、审批详情、模板及日期范围相关查询能力。
+ * 类说明：审批查询util工具。
+ *
+ * @author cy
+ * Copyright (c) CY
  */
 public class WxApprovalQueryUtil {
 
+    /**
+     * 字段说明：日志。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static final Logger log = LoggerFactory.getLogger(WxApprovalQueryUtil.class);
 
+    /**
+     * 字段说明：企业微信企业微信service。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final WxCpService wxCpService;
+    /**
+     * 字段说明：详情查询执行器。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final Executor detailQueryExecutor;
+    /**
+     * 字段说明：配置选项。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private final WxApprovalQueryOptions options;
 
+    /**
+     * 创建 审批查询util工具实例。
+     *
+     * @param wxCpService 企业微信企业微信service
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     public WxApprovalQueryUtil(WxCpService wxCpService) {
         this(wxCpService, Runnable::run, WxApprovalQueryOptions.defaults());
     }
 
+    /**
+     * 创建 审批查询util工具实例。
+     *
+     * @param wxCpService 企业微信企业微信service
+     * @param detailQueryExecutor 详情查询执行器
+     * @param options 配置选项
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     public WxApprovalQueryUtil(
             WxCpService wxCpService,
             Executor detailQueryExecutor,
@@ -54,6 +99,17 @@ public class WxApprovalQueryUtil {
                 this.options.retryBackoffMillis(), this.options.requestsPerSecond());
     }
 
+    /**
+     * 创建 审批查询util工具实例。
+     *
+     * @param wxCpService 企业微信企业微信service
+     * @param detailQueryExecutor 详情查询执行器
+     * @param options 配置选项
+     * @param ignoredMeterRegistry ignoredmeterregistry
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     @Deprecated(since = "1.0.4", forRemoval = true)
     public WxApprovalQueryUtil(
             WxCpService wxCpService,
@@ -65,96 +121,132 @@ public class WxApprovalQueryUtil {
     }
 
     /**
-     * 按时间范围查询审批单号。
+     * 获取审批审批单号列表。
      *
-     * @param startTime 开始时间
-     * @param endTime 结束时间
-     * @return 审批单号列表
+     * @param startTime 查询开始时间
+     * @param endTime 查询结束时间
+     * @return 审批审批单号列表
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<String> getApprovalSpNos(Date startTime, Date endTime) throws WxErrorException {
         return getApprovalSpNos(startTime, endTime, List.of());
     }
 
     /**
-     * 按日期范围对象查询审批单号。
+     * 获取审批审批单号列表。
      *
      * @param dateRange 日期范围
-     * @return 审批单号列表
+     * @return 审批审批单号列表
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<String> getApprovalSpNos(WxDateRange dateRange) throws WxErrorException {
         return getApprovalSpNos(dateRange.startTime(), dateRange.endTime());
     }
 
     /**
-     * 按模板 ID 和时间范围查询审批单号。
+     * 获取审批审批单号列表by模板ID。
      *
-     * @param templateId 模板 ID
-     * @param startTime 开始时间
-     * @param endTime 结束时间
-     * @return 审批单号列表
+     * @param templateId 审批模板 ID
+     * @param startTime 查询开始时间
+     * @param endTime 查询结束时间
+     * @return 审批审批单号列表by模板ID
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<String> getApprovalSpNosByTemplateId(String templateId, Date startTime, Date endTime) throws WxErrorException {
         return getApprovalSpNos(startTime, endTime, List.of(createTemplateFilter(templateId)));
     }
 
     /**
-     * 按模板 ID 和日期范围对象查询审批单号。
+     * 获取审批审批单号列表by模板ID。
      *
-     * @param templateId 模板 ID
+     * @param templateId 审批模板 ID
      * @param dateRange 日期范围
-     * @return 审批单号列表
+     * @return 审批审批单号列表by模板ID
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<String> getApprovalSpNosByTemplateId(String templateId, WxDateRange dateRange) throws WxErrorException {
         return getApprovalSpNosByTemplateId(templateId, dateRange.startTime(), dateRange.endTime());
     }
 
     /**
-     * 获取指定时间范围内出现过的审批模板列表，包含模板 ID 和模板名称。
+     * 获取templates。
      *
-     * @param startTime 开始时间
-     * @param endTime 结束时间
-     * @return 模板列表
+     * @param startTime 查询开始时间
+     * @param endTime 查询结束时间
+     * @return templates
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxApprovalTemplateVO> getTemplates(Date startTime, Date endTime) throws WxErrorException {
         return toTemplateList(queryApprovalDetails(startTime, endTime).details());
     }
 
     /**
-     * 获取指定日期范围内出现过的审批模板列表，包含模板 ID 和模板名称。
+     * 获取templates。
      *
      * @param dateRange 日期范围
-     * @return 模板列表
+     * @return templates
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxApprovalTemplateVO> getTemplates(WxDateRange dateRange) throws WxErrorException {
         return getTemplates(dateRange.startTime(), dateRange.endTime());
     }
 
     /**
-     * 获取指定时间范围内出现过的审批模板映射，key 为模板 ID。
+     * 获取模板map。
      *
-     * @param startTime 开始时间
-     * @param endTime 结束时间
-     * @return 模板映射
+     * @param startTime 查询开始时间
+     * @param endTime 查询结束时间
+     * @return 模板map
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public Map<String, WxApprovalTemplateVO> getTemplateMap(Date startTime, Date endTime) throws WxErrorException {
         return toTemplateMapByTemplates(getTemplates(startTime, endTime));
     }
 
     /**
-     * 获取指定日期范围内出现过的审批模板映射，key 为模板 ID。
+     * 获取模板map。
      *
      * @param dateRange 日期范围
-     * @return 模板映射
+     * @return 模板map
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public Map<String, WxApprovalTemplateVO> getTemplateMap(WxDateRange dateRange) throws WxErrorException {
         return getTemplateMap(dateRange.startTime(), dateRange.endTime());
     }
 
     /**
-     * 根据模板 ID 获取审批模板详情。
+     * 获取模板详情。
      *
-     * @param templateId 模板 ID
+     * @param templateId 审批模板 ID
      * @return 模板详情
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public WxCpOaApprovalTemplateResult getTemplateDetail(String templateId) throws WxErrorException {
         if (templateId == null || templateId.isBlank()) {
@@ -164,20 +256,28 @@ public class WxApprovalQueryUtil {
     }
 
     /**
-     * 根据多个审批单号查询它们对应的模板 ID。
+     * 获取模板ID列表by审批单号列表。
      *
-     * @param spNos 审批单号，可变参数
-     * @return key 为审批单号，value 为模板 ID
+     * @param spNos 审批单号集合
+     * @return 模板ID列表by审批单号列表
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public Map<String, String> getTemplateIdsBySpNos(String... spNos) throws WxErrorException {
         return getTemplateIdsBySpNos(toSpNoList(spNos));
     }
 
     /**
-     * 根据多个审批单号查询它们对应的模板 ID。
+     * 获取模板ID列表by审批单号列表。
      *
      * @param spNos 审批单号集合
-     * @return key 为审批单号，value 为模板 ID
+     * @return 模板ID列表by审批单号列表
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public Map<String, String> getTemplateIdsBySpNos(Collection<String> spNos) throws WxErrorException {
         SimpleRateLimiter rateLimiter = new SimpleRateLimiter(options.requestsPerSecond());
@@ -193,20 +293,28 @@ public class WxApprovalQueryUtil {
     }
 
     /**
-     * 根据多个审批单号查询它们对应的模板详情。
+     * 获取模板详情列表by审批单号列表。
      *
-     * @param spNos 审批单号，可变参数
-     * @return key 为审批单号，value 为模板详情
+     * @param spNos 审批单号集合
+     * @return 模板详情列表by审批单号列表
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public Map<String, WxCpOaApprovalTemplateResult> getTemplateDetailsBySpNos(String... spNos) throws WxErrorException {
         return getTemplateDetailsBySpNos(toSpNoList(spNos));
     }
 
     /**
-     * 根据多个审批单号查询它们对应的模板详情。
+     * 获取模板详情列表by审批单号列表。
      *
      * @param spNos 审批单号集合
-     * @return key 为审批单号，value 为模板详情
+     * @return 模板详情列表by审批单号列表
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public Map<String, WxCpOaApprovalTemplateResult> getTemplateDetailsBySpNos(Collection<String> spNos) throws WxErrorException {
         Map<String, String> templateIdsBySpNo = getTemplateIdsBySpNos(spNos);
@@ -240,33 +348,45 @@ public class WxApprovalQueryUtil {
     }
 
     /**
-     * 按时间范围查询审批详情。
+     * 获取审批详情列表。
      *
-     * @param startTime 开始时间
-     * @param endTime 结束时间
+     * @param startTime 查询开始时间
+     * @param endTime 查询结束时间
      * @return 审批详情列表
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxApprovalDetailVO> getApprovalDetails(Date startTime, Date endTime) throws WxErrorException {
         return queryApprovalDetails(startTime, endTime).details();
     }
 
     /**
-     * 按日期范围对象查询审批详情。
+     * 获取审批详情列表。
      *
      * @param dateRange 日期范围
      * @return 审批详情列表
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxApprovalDetailVO> getApprovalDetails(WxDateRange dateRange) throws WxErrorException {
         return getApprovalDetails(dateRange.startTime(), dateRange.endTime());
     }
 
     /**
-     * 按模板 ID 和时间范围查询审批详情。
+     * 获取审批详情列表by模板ID。
      *
-     * @param templateId 模板 ID
-     * @param startTime 开始时间
-     * @param endTime 结束时间
-     * @return 审批详情列表
+     * @param templateId 审批模板 ID
+     * @param startTime 查询开始时间
+     * @param endTime 查询结束时间
+     * @return 审批详情列表by模板ID
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public List<WxApprovalDetailVO> getApprovalDetailsByTemplateId(String templateId, Date startTime, Date endTime)
             throws WxErrorException {
@@ -274,11 +394,15 @@ public class WxApprovalQueryUtil {
     }
 
     /**
-     * 按时间范围查询审批详情，并按模板 ID 分组。
+     * 获取审批详情列表考勤组by模板ID。
      *
-     * @param startTime 开始时间
-     * @param endTime 结束时间
-     * @return 按模板 ID 分组后的审批详情
+     * @param startTime 查询开始时间
+     * @param endTime 查询结束时间
+     * @return 审批详情列表考勤组by模板ID
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public Map<String, List<WxApprovalDetailVO>> getApprovalDetailsGroupByTemplateId(Date startTime, Date endTime)
             throws WxErrorException {
@@ -286,33 +410,45 @@ public class WxApprovalQueryUtil {
     }
 
     /**
-     * 按时间范围查询审批详情，并返回成功与失败结果。
+     * 查询审批详情列表。
      *
-     * @param startTime 开始时间
-     * @param endTime 结束时间
-     * @return 审批查询结果
+     * @param startTime 查询开始时间
+     * @param endTime 查询结束时间
+     * @return 审批详情查询结果
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public WxApprovalDetailQueryResult queryApprovalDetails(Date startTime, Date endTime) throws WxErrorException {
         return queryApprovalDetails(startTime, endTime, List.of());
     }
 
     /**
-     * 按日期范围对象查询审批详情，并返回成功与失败结果。
+     * 查询审批详情列表。
      *
      * @param dateRange 日期范围
-     * @return 审批查询结果
+     * @return 审批详情查询结果
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public WxApprovalDetailQueryResult queryApprovalDetails(WxDateRange dateRange) throws WxErrorException {
         return queryApprovalDetails(dateRange.startTime(), dateRange.endTime());
     }
 
     /**
-     * 按模板 ID 和时间范围查询审批详情，并返回成功与失败结果。
+     * 查询审批详情列表by模板ID。
      *
-     * @param templateId 模板 ID
-     * @param startTime 开始时间
-     * @param endTime 结束时间
-     * @return 审批查询结果
+     * @param templateId 审批模板 ID
+     * @param startTime 查询开始时间
+     * @param endTime 查询结束时间
+     * @return 审批详情查询结果
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public WxApprovalDetailQueryResult queryApprovalDetailsByTemplateId(String templateId, Date startTime, Date endTime)
             throws WxErrorException {
@@ -320,17 +456,33 @@ public class WxApprovalQueryUtil {
     }
 
     /**
-     * 按模板 ID 和日期范围对象查询审批详情，并返回成功与失败结果。
+     * 查询审批详情列表by模板ID。
      *
-     * @param templateId 模板 ID
+     * @param templateId 审批模板 ID
      * @param dateRange 日期范围
-     * @return 审批查询结果
+     * @return 审批详情查询结果
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
      */
     public WxApprovalDetailQueryResult queryApprovalDetailsByTemplateId(String templateId, WxDateRange dateRange)
             throws WxErrorException {
         return queryApprovalDetailsByTemplateId(templateId, dateRange.startTime(), dateRange.endTime());
     }
 
+    /**
+     * 获取审批审批单号列表。
+     *
+     * @param startTime 查询开始时间
+     * @param endTime 查询结束时间
+     * @param filters filters
+     * @return 审批审批单号列表
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<String> getApprovalSpNos(
             Date startTime,
             Date endTime,
@@ -394,6 +546,18 @@ public class WxApprovalQueryUtil {
         return new ArrayList<>(spNos);
     }
 
+    /**
+     * 查询审批详情列表。
+     *
+     * @param startTime 查询开始时间
+     * @param endTime 查询结束时间
+     * @param filters filters
+     * @return 审批详情查询结果
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private WxApprovalDetailQueryResult queryApprovalDetails(
             Date startTime,
             Date endTime,
@@ -443,6 +607,16 @@ public class WxApprovalQueryUtil {
         return new WxApprovalDetailQueryResult(List.copyOf(details), List.copyOf(failures));
     }
 
+    /**
+     * 拉取审批详情with重试。
+     *
+     * @param spNo 审批单号
+     * @param rateLimiter ratelimiter
+     * @return 详情查询outcome
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private DetailQueryOutcome fetchApprovalDetailWithRetry(String spNo, SimpleRateLimiter rateLimiter) {
         int maxAttempts = Math.max(1, options.maxRetryAttempts());
         Throwable lastError = null;
@@ -486,11 +660,30 @@ public class WxApprovalQueryUtil {
         );
     }
 
+    /**
+     * 拉取审批详情。
+     *
+     * @param spNo 审批单号
+     * @return 审批详情业务视图对象
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private WxApprovalDetailVO fetchApprovalDetail(String spNo) throws WxErrorException {
         WxCpApprovalDetailResult detail = wxCpService.getOaService().getApprovalDetail(spNo);
         return WxApprovalConverter.from(detail);
     }
 
+    /**
+     * 创建模板filter。
+     *
+     * @param templateId 审批模板 ID
+     * @return 企业微信审批信息查询filter
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private WxCpApprovalInfoQueryFilter createTemplateFilter(String templateId) {
         if (templateId == null || templateId.isBlank()) {
             throw new IllegalArgumentException("templateId must not be blank");
@@ -501,6 +694,15 @@ public class WxApprovalQueryUtil {
         return filter;
     }
 
+    /**
+     * 执行 normalizeSpNos 相关逻辑。
+     *
+     * @param spNos 审批单号集合
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<String> normalizeSpNos(Collection<String> spNos) {
         if (spNos == null || spNos.isEmpty()) {
             throw new IllegalArgumentException("spNos must not be empty");
@@ -517,10 +719,28 @@ public class WxApprovalQueryUtil {
         return normalized;
     }
 
+    /**
+     * 转换为模板list。
+     *
+     * @param details 详情列表
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<WxApprovalTemplateVO> toTemplateList(List<WxApprovalDetailVO> details) {
         return new ArrayList<>(toTemplateMapByDetails(details).values());
     }
 
+    /**
+     * 转换为模板mapby详情列表。
+     *
+     * @param details 详情列表
+     * @return 审批模板vo>
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Map<String, WxApprovalTemplateVO> toTemplateMapByDetails(List<WxApprovalDetailVO> details) {
         Map<String, WxApprovalTemplateVO> templateMap = new LinkedHashMap<>();
         for (WxApprovalDetailVO detail : details) {
@@ -537,6 +757,15 @@ public class WxApprovalQueryUtil {
         return templateMap;
     }
 
+    /**
+     * 转换为模板mapbytemplates。
+     *
+     * @param templates templates
+     * @return 审批模板vo>
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Map<String, WxApprovalTemplateVO> toTemplateMapByTemplates(List<WxApprovalTemplateVO> templates) {
         Map<String, WxApprovalTemplateVO> templateMap = new LinkedHashMap<>();
         for (WxApprovalTemplateVO template : templates) {
@@ -548,10 +777,27 @@ public class WxApprovalQueryUtil {
         return templateMap;
     }
 
+    /**
+     * 转换为审批单号list。
+     *
+     * @param spNos 审批单号集合
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private List<String> toSpNoList(String... spNos) {
         return spNos == null ? List.of() : List.of(spNos);
     }
 
+    /**
+     * 执行 sleepBackoff 相关逻辑。
+     *
+     * @param attempt attempt
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private void sleepBackoff(int attempt) {
         long backoffMillis = calculateExponentialBackoff(attempt);
         if (backoffMillis > 0) {
@@ -559,6 +805,15 @@ public class WxApprovalQueryUtil {
         }
     }
 
+    /**
+     * 计算exponential退避。
+     *
+     * @param attempt attempt
+     * @return long
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private long calculateExponentialBackoff(int attempt) {
         long baseBackoff = Math.max(0L, options.retryBackoffMillis());
         if (baseBackoff == 0L) {
@@ -569,6 +824,15 @@ public class WxApprovalQueryUtil {
         return Math.min(exponentialBackoff, maxBackoff);
     }
 
+    /**
+     * 执行 unwrap 相关逻辑。
+     *
+     * @param throwable throwable
+     * @return throwable
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Throwable unwrap(Throwable throwable) {
         Throwable current = throwable;
         while (current.getCause() != null && current != current.getCause()) {
@@ -577,6 +841,15 @@ public class WxApprovalQueryUtil {
         return current;
     }
 
+    /**
+     * 校验时间范围。
+     *
+     * @param startTime 查询开始时间
+     * @param endTime 查询结束时间
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private void validateTimeRange(Date startTime, Date endTime) {
         if (startTime == null || endTime == null) {
             throw new IllegalArgumentException("startTime and endTime must not be null");
@@ -586,19 +859,72 @@ public class WxApprovalQueryUtil {
         }
     }
 
+    /**
+     * 记录说明：详情查询outcome。
+     *
+     * @param detail 详情
+     * @param failure failure
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private record DetailQueryOutcome(
             WxApprovalDetailVO detail,
             WxApprovalDetailFetchFailure failure
     ) {
     }
 
+    /**
+     * 类说明：simpleratelimiter。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static final class SimpleRateLimiter {
+        /**
+         * 字段说明：日志。
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
         private static final Logger log = LoggerFactory.getLogger(SimpleRateLimiter.class);
+        /**
+         * 字段说明：intervalnanos。
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
         private final long intervalNanos;
+        /**
+         * 字段说明：nextallowednanos。
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
         private long nextAllowedNanos;
+        /**
+         * 字段说明：总acquires。
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
         private long totalAcquires = 0;
+        /**
+         * 字段说明：总wait时间nanos。
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
         private long totalWaitTimeNanos = 0;
 
+        /**
+         * 创建 simpleratelimiter实例。
+         *
+         * @param requestsPerSecond 请求每秒
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
         private SimpleRateLimiter(double requestsPerSecond) {
             if (requestsPerSecond <= 0D) {
                 this.intervalNanos = 0L;
@@ -608,6 +934,12 @@ public class WxApprovalQueryUtil {
             this.nextAllowedNanos = System.nanoTime();
         }
 
+        /**
+         * 执行 acquire 相关逻辑。
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
         private synchronized void acquire() {
             if (intervalNanos <= 0L) {
                 return;
@@ -629,9 +961,29 @@ public class WxApprovalQueryUtil {
         }
     }
 
+    /**
+     * 类说明：模板查询runtime异常。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static final class TemplateQueryRuntimeException extends RuntimeException {
+        /**
+         * 字段说明：原始异常。
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
         private final WxErrorException cause;
 
+        /**
+         * 创建 模板查询runtime异常实例。
+         *
+         * @param cause 原始异常
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
         private TemplateQueryRuntimeException(WxErrorException cause) {
             super(cause);
             this.cause = cause;

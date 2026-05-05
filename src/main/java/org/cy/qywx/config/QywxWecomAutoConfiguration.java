@@ -22,16 +22,55 @@ import org.springframework.context.annotation.Bean;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * 类说明：企业微信 Starter 自动配置。
+ *
+ * @author cy
+ * Copyright (c) CY
+ */
 @AutoConfiguration
 @ConditionalOnClass(WxCpService.class)
 @EnableConfigurationProperties(WxCpProperties.class)
 public class QywxWecomAutoConfiguration {
 
+    /**
+     * 字段说明：审批执行器bean名称。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     public static final String APPROVAL_EXECUTOR_BEAN_NAME = "qywxApprovalQueryExecutor";
+    /**
+     * 字段说明：HR执行器bean名称。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     public static final String HR_EXECUTOR_BEAN_NAME = "qywxHrRosterExecutor";
+    /**
+     * 字段说明：HR企业微信servicebean名称。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     public static final String HR_CP_SERVICE_BEAN_NAME = "qywxHrCpService";
+    /**
+     * 字段说明：考勤打卡执行器bean名称。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     public static final String CHECKIN_EXECUTOR_BEAN_NAME = "qywxCheckinExecutor";
 
+    /**
+     * 执行 wxCpService 相关逻辑。
+     *
+     * @param properties properties
+     * @return 企业微信service
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "wx.cp", name = {"corp-id", "corp-secret", "agent-id"})
@@ -45,6 +84,15 @@ public class QywxWecomAutoConfiguration {
         return service;
     }
 
+    /**
+     * 执行 qywxApprovalQueryExecutor 相关逻辑。
+     *
+     * @param properties properties
+     * @return 执行器service
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     @Bean(name = APPROVAL_EXECUTOR_BEAN_NAME, destroyMethod = "shutdown")
     @ConditionalOnMissingBean(name = APPROVAL_EXECUTOR_BEAN_NAME)
     public ExecutorService qywxApprovalQueryExecutor(WxCpProperties properties) {
@@ -52,6 +100,15 @@ public class QywxWecomAutoConfiguration {
         return Executors.newFixedThreadPool(threads);
     }
 
+    /**
+     * 执行 wxContactQueryUtil 相关逻辑。
+     *
+     * @param wxCpService 企业微信企业微信service
+     * @return contact查询util工具
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBean(WxCpService.class)
@@ -59,6 +116,15 @@ public class QywxWecomAutoConfiguration {
         return new WxContactQueryUtil(wxCpService);
     }
 
+    /**
+     * 执行 wxApiClient 相关逻辑。
+     *
+     * @param wxCpService 企业微信企业微信service
+     * @return API客户端
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBean(WxCpService.class)
@@ -66,6 +132,17 @@ public class QywxWecomAutoConfiguration {
         return new WxApiClient(wxCpService);
     }
 
+    /**
+     * 执行 wxApprovalQueryUtil 相关逻辑。
+     *
+     * @param wxCpService 企业微信企业微信service
+     * @param approvalExecutor 审批执行器
+     * @param properties properties
+     * @return 审批查询util工具
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBean(WxCpService.class)
@@ -85,6 +162,15 @@ public class QywxWecomAutoConfiguration {
         return new WxApprovalQueryUtil(wxCpService, approvalExecutor, options);
     }
 
+    /**
+     * 执行 qywxHrCpService 相关逻辑。
+     *
+     * @param properties properties
+     * @return 企业微信service
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     @Bean(name = HR_CP_SERVICE_BEAN_NAME)
     @ConditionalOnMissingBean(name = HR_CP_SERVICE_BEAN_NAME)
     @ConditionalOnProperty(prefix = "wx.cp", name = {"corp-id", "hr.secret"})
@@ -100,6 +186,15 @@ public class QywxWecomAutoConfiguration {
         return service;
     }
 
+    /**
+     * 执行 qywxHrRosterExecutor 相关逻辑。
+     *
+     * @param properties properties
+     * @return 执行器service
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     @Bean(name = HR_EXECUTOR_BEAN_NAME, destroyMethod = "shutdown")
     @ConditionalOnMissingBean(name = HR_EXECUTOR_BEAN_NAME)
     @ConditionalOnProperty(prefix = "wx.cp", name = {"corp-id", "hr.secret"})
@@ -108,6 +203,18 @@ public class QywxWecomAutoConfiguration {
         return Executors.newFixedThreadPool(threads);
     }
 
+    /**
+     * 执行 wxHrRosterQueryUtil 相关逻辑。
+     *
+     * @param hrCpService HR企业微信service
+     * @param contactQueryUtil contact查询util
+     * @param hrExecutor HR执行器
+     * @param properties properties
+     * @return HR花名册查询util工具
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBean(name = HR_CP_SERVICE_BEAN_NAME)
@@ -128,6 +235,15 @@ public class QywxWecomAutoConfiguration {
         );
     }
 
+    /**
+     * 执行 qywxCheckinExecutor 相关逻辑。
+     *
+     * @param properties properties
+     * @return 执行器service
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     @Bean(name = CHECKIN_EXECUTOR_BEAN_NAME, destroyMethod = "shutdown")
     @ConditionalOnMissingBean(name = CHECKIN_EXECUTOR_BEAN_NAME)
     public ExecutorService qywxCheckinExecutor(WxCpProperties properties) {
@@ -135,6 +251,17 @@ public class QywxWecomAutoConfiguration {
         return Executors.newFixedThreadPool(threads);
     }
 
+    /**
+     * 执行 wxCheckinQueryUtil 相关逻辑。
+     *
+     * @param wxCpService 企业微信企业微信service
+     * @param checkinExecutor 考勤打卡执行器
+     * @param properties properties
+     * @return 考勤打卡查询util工具
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBean(WxCpService.class)

@@ -5,25 +5,51 @@ import lombok.Data;
 import java.io.Serializable;
 
 /**
- * 考勤组班次 VO。
+ * 类说明：考勤打卡排班业务视图对象。
  *
- * @author CY
+ * @author cy
  * Copyright (c) CY
  */
 @Data
 public class WxCheckinScheduleVO implements Serializable {
 
+    /**
+     * 字段说明：序列化版本号。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private static final long serialVersionUID = 1L;
 
-    /** 班次 ID */
+    /**
+     * 字段说明：排班ID。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Integer scheduleId;
 
-    /** 班次名称 */
+    /**
+     * 字段说明：排班名称。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private String scheduleName;
 
-    /** 时段总数 */
+    /**
+     * 字段说明：时间section。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Integer timeSection;
 
-    /** 是否禁用 */
+    /**
+     * 字段说明：禁用。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
     private Boolean disabled;
 }
