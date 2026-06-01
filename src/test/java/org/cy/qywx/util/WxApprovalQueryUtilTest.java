@@ -6,6 +6,7 @@ import me.chanjar.weixin.cp.bean.oa.WxCpApprovalDetailResult;
 import me.chanjar.weixin.cp.bean.oa.WxCpApprovalInfo;
 import me.chanjar.weixin.cp.bean.oa.WxCpApprovalInfoQueryFilter;
 import me.chanjar.weixin.cp.bean.oa.WxCpOaApprovalTemplateResult;
+import me.chanjar.weixin.cp.util.json.WxCpGsonBuilder;
 import org.cy.qywx.vo.WxApprovalDetailVO;
 import org.cy.qywx.vo.WxApprovalTemplateVO;
 import org.junit.jupiter.api.Test;
@@ -23,7 +24,10 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -83,15 +87,13 @@ class WxApprovalQueryUtilTest {
         when(oaService.getApprovalInfo(any(Date.class), any(Date.class), nullable(String.class), anyInt(), nullable(List.class)))
                 .thenReturn(info);
 
-        WxCpApprovalDetailResult okResult = createApprovalDetailResult("sp-ok", "temp-1");
-        when(oaService.getApprovalDetail("sp-ok")).thenReturn(okResult);
-        when(oaService.getApprovalDetail("sp-fail")).thenThrow(new RuntimeException("mock boom"));
-
-        WxApprovalQueryUtil util = new WxApprovalQueryUtil(
+        WxApprovalQueryUtil util = spy(new WxApprovalQueryUtil(
                 wxCpService,
                 DIRECT_EXECUTOR,
                 new WxApprovalQueryOptions(29, 100, 3, 0, 0)
-        );
+        ));
+        doReturn(toRawJson("sp-ok", "temp-1")).when(util).fetchRawApprovalDetailJson("sp-ok");
+        doThrow(new RuntimeException("mock boom")).when(util).fetchRawApprovalDetailJson("sp-fail");
 
         WxApprovalDetailQueryResult result = util.queryApprovalDetails(new Date(0), new Date(1_000));
         List<WxApprovalDetailVO> details = result.details();
@@ -102,8 +104,8 @@ class WxApprovalQueryUtilTest {
         assertEquals(1, failures.size());
         assertEquals("sp-fail", failures.get(0).spNo());
         assertEquals(3, failures.get(0).attempts());
-        verify(oaService, times(1)).getApprovalDetail("sp-ok");
-        verify(oaService, times(3)).getApprovalDetail("sp-fail");
+        verify(util, times(1)).fetchRawApprovalDetailJson("sp-ok");
+        verify(util, times(3)).fetchRawApprovalDetailJson("sp-fail");
     }
 
     @Test
@@ -126,19 +128,18 @@ class WxApprovalQueryUtilTest {
                         && "temp-1".equals(filters.get(0).getValue()))
         )).thenReturn(info);
 
-        when(oaService.getApprovalDetail("sp-1")).thenReturn(createApprovalDetailResult("sp-1", "temp-1"));
-        when(oaService.getApprovalDetail("sp-2")).thenReturn(createApprovalDetailResult("sp-2", "temp-2"));
-
         WxCpOaApprovalTemplateResult template1 = new WxCpOaApprovalTemplateResult();
         WxCpOaApprovalTemplateResult template2 = new WxCpOaApprovalTemplateResult();
         when(oaService.getTemplateDetail("temp-1")).thenReturn(template1);
         when(oaService.getTemplateDetail("temp-2")).thenReturn(template2);
 
-        WxApprovalQueryUtil util = new WxApprovalQueryUtil(
+        WxApprovalQueryUtil util = spy(new WxApprovalQueryUtil(
                 wxCpService,
                 DIRECT_EXECUTOR,
                 new WxApprovalQueryOptions(29, 100, 3, 0, 0)
-        );
+        ));
+        doReturn(toRawJson("sp-1", "temp-1")).when(util).fetchRawApprovalDetailJson("sp-1");
+        doReturn(toRawJson("sp-2", "temp-2")).when(util).fetchRawApprovalDetailJson("sp-2");
 
         List<WxApprovalDetailVO> details = util.getApprovalDetailsByTemplateId("temp-1", new Date(0), new Date(1000));
         assertEquals(2, details.size());
@@ -167,15 +168,14 @@ class WxApprovalQueryUtilTest {
         when(oaService.getApprovalInfo(any(Date.class), any(Date.class), nullable(String.class), anyInt(), nullable(List.class)))
                 .thenReturn(info);
 
-        when(oaService.getApprovalDetail("sp-1")).thenReturn(createApprovalDetailResult("sp-1", "temp-1", "请假"));
-        when(oaService.getApprovalDetail("sp-2")).thenReturn(createApprovalDetailResult("sp-2", "temp-2", "报销"));
-        when(oaService.getApprovalDetail("sp-3")).thenReturn(createApprovalDetailResult("sp-3", "temp-1", "请假"));
-
-        WxApprovalQueryUtil util = new WxApprovalQueryUtil(
+        WxApprovalQueryUtil util = spy(new WxApprovalQueryUtil(
                 wxCpService,
                 DIRECT_EXECUTOR,
                 new WxApprovalQueryOptions(29, 100, 3, 0, 0)
-        );
+        ));
+        doReturn(toRawJson("sp-1", "temp-1", "请假")).when(util).fetchRawApprovalDetailJson("sp-1");
+        doReturn(toRawJson("sp-2", "temp-2", "报销")).when(util).fetchRawApprovalDetailJson("sp-2");
+        doReturn(toRawJson("sp-3", "temp-1", "请假")).when(util).fetchRawApprovalDetailJson("sp-3");
 
         List<WxApprovalTemplateVO> templates = util.getTemplates(new Date(0), new Date(1000));
         Map<String, WxApprovalTemplateVO> templateMap = util.getTemplateMap(new Date(0), new Date(1000));
@@ -196,6 +196,14 @@ class WxApprovalQueryUtilTest {
         );
 
         assertThrows(IllegalArgumentException.class, () -> util.getApprovalSpNos(new Date(1000), new Date(1000)));
+    }
+
+    private String toRawJson(String spNo, String templateId) {
+        return toRawJson(spNo, templateId, null);
+    }
+
+    private String toRawJson(String spNo, String templateId, String spName) {
+        return WxCpGsonBuilder.create().toJson(createApprovalDetailResult(spNo, templateId, spName));
     }
 
     private WxCpApprovalDetailResult createApprovalDetailResult(String spNo, String templateId) {

@@ -1,11 +1,14 @@
 package org.cy.qywx.util;
 
+import com.google.gson.JsonObject;
 import me.chanjar.weixin.common.error.WxErrorException;
 import me.chanjar.weixin.cp.api.WxCpService;
 import me.chanjar.weixin.cp.bean.oa.WxCpApprovalDetailResult;
 import me.chanjar.weixin.cp.bean.oa.WxCpApprovalInfo;
 import me.chanjar.weixin.cp.bean.oa.WxCpApprovalInfoQueryFilter;
 import me.chanjar.weixin.cp.bean.oa.WxCpOaApprovalTemplateResult;
+import me.chanjar.weixin.cp.constant.WxCpApiPathConsts;
+import me.chanjar.weixin.cp.util.json.WxCpGsonBuilder;
 import org.cy.qywx.vo.WxApprovalDetailVO;
 import org.cy.qywx.vo.WxApprovalTemplateVO;
 import org.slf4j.Logger;
@@ -671,8 +674,29 @@ public class WxApprovalQueryUtil {
      * Copyright (c) CY
      */
     private WxApprovalDetailVO fetchApprovalDetail(String spNo) throws WxErrorException {
-        WxCpApprovalDetailResult detail = wxCpService.getOaService().getApprovalDetail(spNo);
-        return WxApprovalConverter.from(detail);
+        String rawJson = fetchRawApprovalDetailJson(spNo);
+        WxCpApprovalDetailResult detail = WxCpGsonBuilder.create().fromJson(rawJson, WxCpApprovalDetailResult.class);
+        return WxApprovalConverter.from(detail, rawJson);
+    }
+
+    /**
+     * 拉取审批详情的原始 JSON 响应。
+     *
+     * 直接走原始接口而非 WxJava 的 {@code getApprovalDetail}，以保留 WxJava 实体未映射的容器控件
+     * （如离职 Resignation），供 {@link WxApprovalConverter#from(WxCpApprovalDetailResult, String)} 补全。
+     *
+     * @param spNo 审批单号
+     * @return 审批详情接口的原始 JSON 响应
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    String fetchRawApprovalDetailJson(String spNo) throws WxErrorException {
+        JsonObject body = new JsonObject();
+        body.addProperty("sp_no", spNo);
+        String url = wxCpService.getWxCpConfigStorage().getApiUrl(WxCpApiPathConsts.Oa.GET_APPROVAL_DETAIL);
+        return wxCpService.post(url, body.toString());
     }
 
     /**

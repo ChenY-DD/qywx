@@ -1,18 +1,24 @@
 package org.cy.qywx.util;
 
+import me.chanjar.weixin.cp.bean.oa.WxCpApprovalApplyData;
 import me.chanjar.weixin.cp.bean.oa.WxCpApprovalComment;
 import me.chanjar.weixin.cp.bean.oa.WxCpApprovalDetailResult;
 import me.chanjar.weixin.cp.bean.oa.WxCpApprovalRecord;
 import me.chanjar.weixin.cp.bean.oa.WxCpApprovalRecordDetail;
 import me.chanjar.weixin.cp.bean.oa.WxCpOperator;
 import me.chanjar.weixin.cp.bean.oa.WxCpSpStatus;
+import me.chanjar.weixin.cp.bean.oa.applydata.ApplyDataContent;
+import me.chanjar.weixin.cp.bean.oa.applydata.ContentTitle;
+import me.chanjar.weixin.cp.bean.oa.applydata.ContentValue;
 import org.cy.qywx.vo.WxApprovalDetailVO;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class WxApprovalConverterTest {
@@ -50,6 +56,7 @@ class WxApprovalConverterTest {
         assertEquals(199_000L, vo.getCurrentDurationSeconds());
         assertFalse(Boolean.TRUE.equals(vo.getCreatedToday()));
         assertTrue(Boolean.TRUE.equals(vo.getOverdueOneDay()));
+        assertEquals("sp-1", vo.getSpNo());
     }
 
     @Test
@@ -70,5 +77,240 @@ class WxApprovalConverterTest {
         assertEquals(null, vo.getCloseLoopDurationSeconds());
         assertEquals(99_990L, vo.getCurrentDurationSeconds());
         assertTrue(Boolean.TRUE.equals(vo.getOverdueOneDay()));
+    }
+
+    @Test
+    void shouldResolveAttendanceDurationValue() {
+        ContentValue.Attendance.DataRange range = new ContentValue.Attendance.DataRange();
+        range.setBegin(1_700_000_000L);
+        range.setEnd(1_700_003_600L);
+        range.setDuration(3_600L);
+        ContentValue.Attendance attendance = new ContentValue.Attendance();
+        attendance.setType(1);
+        attendance.setDateRange(range);
+
+        String value = resolveSingleFormValue("Attendance", new ContentValue().setAttendance(attendance));
+
+        assertNotNull(value, "假勤控件（出差/外出/加班）的值不应为空");
+        assertTrue(value.contains("3600"), "应包含时长秒数，实际: " + value);
+    }
+
+    @Test
+    void shouldResolveVacationValue() {
+        ContentTitle vacationType = new ContentTitle();
+        vacationType.setText("年假");
+        ContentValue.Selector.Option option = new ContentValue.Selector.Option();
+        option.setValues(List.of(vacationType));
+        ContentValue.Selector selector = new ContentValue.Selector();
+        selector.setOptions(List.of(option));
+
+        ContentValue.Attendance.DataRange range = new ContentValue.Attendance.DataRange();
+        range.setDuration(28_800L);
+        ContentValue.Attendance attendance = new ContentValue.Attendance();
+        attendance.setDateRange(range);
+
+        ContentValue.Vacation vacation = new ContentValue.Vacation();
+        vacation.setSelector(selector);
+        vacation.setAttendance(attendance);
+
+        String value = resolveSingleFormValue("Vacation", new ContentValue().setVacation(vacation));
+
+        assertNotNull(value, "请假控件的值不应为空");
+        assertTrue(value.contains("年假"), "应包含假期类型，实际: " + value);
+    }
+
+    @Test
+    void shouldResolveDateRangeValue() {
+        ContentValue.Attendance.DataRange range = new ContentValue.Attendance.DataRange();
+        range.setBegin(1_700_000_000L);
+        range.setEnd(1_700_086_400L);
+        range.setDuration(86_400L);
+
+        String value = resolveSingleFormValue("DateRange", new ContentValue().setDateRange(range));
+
+        assertNotNull(value, "时长控件的值不应为空");
+        assertTrue(value.contains("86400"), "应包含时长秒数，实际: " + value);
+    }
+
+    @Test
+    void shouldResolveLocationValue() {
+        ContentValue.Location location = new ContentValue.Location();
+        location.setTitle("总部");
+        location.setAddress("北京市朝阳区");
+        location.setLatitude(new BigDecimal("39.9"));
+        location.setLongitude(new BigDecimal("116.4"));
+
+        String value = resolveSingleFormValue("Location", new ContentValue().setLocation(location));
+
+        assertNotNull(value, "位置控件的值不应为空");
+        assertTrue(value.contains("北京市朝阳区"), "应包含位置地址，实际: " + value);
+    }
+
+    @Test
+    void shouldResolveFormulaValue() {
+        ContentValue.Formula formula = new ContentValue.Formula();
+        formula.setValue("12345.67");
+
+        String value = resolveSingleFormValue("Formula", new ContentValue().setFormula(formula));
+
+        assertEquals("12345.67", value, "公式控件应返回计算结果");
+    }
+
+    @Test
+    void shouldResolveBankAccountValue() {
+        ContentValue.BankAccount bankAccount = new ContentValue.BankAccount();
+        bankAccount.setAccountName("张三");
+        bankAccount.setAccountNumber("6222021234567890");
+
+        String value = resolveSingleFormValue("BankAccount", new ContentValue().setBankAccount(bankAccount));
+
+        assertNotNull(value, "银行账户控件的值不应为空");
+        assertTrue(value.contains("6222021234567890"), "应包含银行账号，实际: " + value);
+    }
+
+    @Test
+    void shouldResolvePunchCorrectionValue() {
+        ContentValue.PunchCorrection punchCorrection = new ContentValue.PunchCorrection();
+        punchCorrection.setState("上班");
+        punchCorrection.setTime(1_700_000_000L);
+
+        String value = resolveSingleFormValue("PunchCorrection", new ContentValue().setPunchCorrection(punchCorrection));
+
+        assertNotNull(value, "补卡控件的值不应为空");
+        assertTrue(value.contains("上班"), "应包含补卡状态，实际: " + value);
+    }
+
+    @Test
+    void shouldResolveRelatedApprovalValue() {
+        ContentValue.TemplateName templateName = new ContentValue.TemplateName();
+        templateName.setText("请假申请");
+        ContentValue.RelatedApproval relatedApproval = new ContentValue.RelatedApproval();
+        relatedApproval.setSpNo("202600010001");
+        relatedApproval.setTemplateNames(List.of(templateName));
+
+        String value = resolveSingleFormValue("RelatedApproval",
+                new ContentValue().setRelatedApproval(List.of(relatedApproval)));
+
+        assertNotNull(value, "关联审批单控件的值不应为空");
+        assertTrue(value.contains("202600010001"), "应包含关联审批单号，实际: " + value);
+    }
+
+    @Test
+    void shouldExpandTableChildrenValue() {
+        ContentTitle childTitle = new ContentTitle();
+        childTitle.setText("商品名称");
+        ApplyDataContent childContent = new ApplyDataContent();
+        childContent.setControl("Text");
+        childContent.setTitles(List.of(childTitle));
+        childContent.setValue(new ContentValue().setText("笔记本电脑"));
+
+        ContentValue.Child child = new ContentValue.Child();
+        child.setList(List.of(childContent));
+
+        String value = resolveSingleFormValue("Table", new ContentValue().setChildren(List.of(child)));
+
+        assertNotNull(value, "明细表控件的值不应为空");
+        assertTrue(value.contains("商品名称"), "明细表应展开子控件标题，实际: " + value);
+        assertTrue(value.contains("笔记本电脑"), "明细表应展开子控件的值，实际: " + value);
+    }
+
+    @Test
+    void shouldMergeResignationContainerFromRawJson() {
+        ContentTitle title = new ContentTitle();
+        title.setText("离职");
+        title.setLang("zh_CN");
+        ApplyDataContent content = new ApplyDataContent();
+        content.setControl("Resignation");
+        content.setId("Resignation-1");
+        content.setTitles(List.of(title));
+        content.setValue(new ContentValue());
+
+        WxCpApprovalApplyData applyData = new WxCpApprovalApplyData();
+        applyData.setContents(List.of(content));
+        WxCpApprovalDetailResult.WxCpApprovalDetail detail = new WxCpApprovalDetailResult.WxCpApprovalDetail();
+        detail.setSpNo("sp-resign");
+        detail.setApplyTime(1L);
+        detail.setApplyData(applyData);
+        WxCpApprovalDetailResult result = new WxCpApprovalDetailResult();
+        result.setInfo(detail);
+
+        String rawJson = """
+                {"errcode":0,"info":{"apply_data":{"contents":[
+                  {"control":"Resignation","id":"Resignation-1","title":[{"text":"离职","lang":"zh_CN"}],
+                   "value":{
+                     "date":{"control":"Date","id":"d","title":[{"text":"Offboarding Date","lang":"en"},{"text":"离职日期","lang":"zh_CN"}],"value":{"date":{"type":"day","s_timestamp":"1782748800"}}},
+                     "reason":{"control":"Textarea","id":"r","title":[{"text":"Reason","lang":"en"},{"text":"离职原因","lang":"zh_CN"}],"value":{"text":"个人发展规划"}},
+                     "remark":{"control":"Textarea","id":"m","title":[{"text":"Remarks","lang":"en"},{"text":"离职备注","lang":"zh_CN"}],"value":{"text":"无"}},
+                     "docs":[],"wedrive_files":[]
+                   }}
+                ]}}}
+                """;
+
+        WxApprovalDetailVO vo = WxApprovalConverter.from(result, rawJson);
+
+        assertEquals(1, vo.getFormItems().size(), "离职容器仍应是一个表单项");
+        String value = vo.getFormItems().get(0).getValue();
+        assertNotNull(value, "离职容器控件的值不应为空");
+        assertTrue(value.contains("离职原因"), "应包含离职原因标题，实际: " + value);
+        assertTrue(value.contains("个人发展规划"), "应包含离职原因内容，实际: " + value);
+        assertTrue(value.contains("离职日期"), "应包含离职日期标题，实际: " + value);
+        assertTrue(value.contains("离职备注"), "应包含离职备注标题，实际: " + value);
+        assertFalse(value.contains("Reason"), "应优先取中文标题而非英文，实际: " + value);
+    }
+
+    @Test
+    void shouldPreferSimplifiedChineseTitle() {
+        ContentTitle en = new ContentTitle();
+        en.setText("Offboarding");
+        en.setLang("en");
+        ContentTitle zh = new ContentTitle();
+        zh.setText("离职");
+        zh.setLang("zh_CN");
+        ApplyDataContent content = new ApplyDataContent();
+        content.setControl("Text");
+        content.setTitles(List.of(en, zh));
+        content.setValue(new ContentValue().setText("x"));
+
+        WxCpApprovalApplyData applyData = new WxCpApprovalApplyData();
+        applyData.setContents(List.of(content));
+        WxCpApprovalDetailResult.WxCpApprovalDetail detail = new WxCpApprovalDetailResult.WxCpApprovalDetail();
+        detail.setSpNo("sp-title");
+        detail.setApplyTime(1L);
+        detail.setApplyData(applyData);
+        WxCpApprovalDetailResult result = new WxCpApprovalDetailResult();
+        result.setInfo(detail);
+
+        WxApprovalDetailVO vo = WxApprovalConverter.from(result, 100L);
+
+        assertEquals("离职", vo.getFormItems().get(0).getTitle(), "标题应优先取简体中文而非英文");
+    }
+
+    /**
+     * 构造仅包含单个表单控件的审批详情，返回该表单项解析后的值。
+     */
+    private String resolveSingleFormValue(String control, ContentValue value) {
+        ContentTitle title = new ContentTitle();
+        title.setText("测试字段");
+
+        ApplyDataContent content = new ApplyDataContent();
+        content.setControl(control);
+        content.setTitles(List.of(title));
+        content.setValue(value);
+
+        WxCpApprovalApplyData applyData = new WxCpApprovalApplyData();
+        applyData.setContents(List.of(content));
+
+        WxCpApprovalDetailResult.WxCpApprovalDetail detail = new WxCpApprovalDetailResult.WxCpApprovalDetail();
+        detail.setSpNo("sp-form");
+        detail.setApplyTime(1L);
+        detail.setApplyData(applyData);
+
+        WxCpApprovalDetailResult result = new WxCpApprovalDetailResult();
+        result.setInfo(detail);
+
+        WxApprovalDetailVO vo = WxApprovalConverter.from(result, 100L);
+        assertNotNull(vo, "转换结果不应为空");
+        assertEquals(1, vo.getFormItems().size(), "应有且仅有一个表单项");
+        return vo.getFormItems().get(0).getValue();
     }
 }
