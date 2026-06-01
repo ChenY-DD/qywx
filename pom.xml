@@ -12,6 +12,13 @@
     <name>qywx-wecom-spring-boot-starter</name>
     <description>Spring Boot starter for WeCom contact and approval querying</description>
 
+    <url>https://github.com/cheny-dd/qywx</url>
+    <scm>
+        <connection>scm:git:git://github.com/cheny-dd/qywx.git</connection>
+        <developerConnection>scm:git:ssh://github.com:cheny-dd/qywx.git</developerConnection>
+        <url>https://github.com/cheny-dd/qywx/tree/main</url>
+    </scm>
+
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
@@ -142,6 +149,35 @@
                             <version>1.18.42</version>
                         </path>
                     </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.3.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.11.2</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadoc</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <doclint>none</doclint>
                 </configuration>
             </plugin>
         </plugins>
