@@ -4,6 +4,7 @@ import me.chanjar.weixin.cp.api.WxCpService;
 import org.cy.qywx.util.WxApprovalQueryUtil;
 import org.cy.qywx.util.WxCheckinQueryUtil;
 import org.cy.qywx.util.WxContactQueryUtil;
+import org.cy.qywx.util.WxHrRosterQueryUtil;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -64,6 +65,25 @@ class QywxWecomAutoConfigurationTest {
                     assertThat(props.getCheckin().getSegmentDays()).isEqualTo(15);
                     assertThat(props.getCheckin().getUserBatchSize()).isEqualTo(50);
                     assertThat(props.getCheckin().getRequestsPerSecond()).isEqualTo(2D);
+                });
+    }
+
+    @Test
+    void shouldStartWhenBothContactAndHrConfigured() {
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(QywxWecomAutoConfiguration.class))
+                .withPropertyValues(
+                        "wx.cp.corp-id=test-corp-id",
+                        "wx.cp.corp-secret=test-secret",
+                        "wx.cp.agent-id=1000002",
+                        "wx.cp.hr.secret=test-hr-secret"
+                )
+                .run(context -> {
+                    // 两个 WxCpService（主 + qywxHrCpService）共存时，注入主 service 的工具不应再有歧义
+                    assertThat(context).hasNotFailed();
+                    assertThat(context.getBeanNamesForType(WxCpService.class)).hasSize(2);
+                    assertThat(context).hasSingleBean(WxContactQueryUtil.class);
+                    assertThat(context).hasSingleBean(WxHrRosterQueryUtil.class);
                 });
     }
 }

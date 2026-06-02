@@ -55,6 +55,10 @@ A WeCom corp issues a separate secret per app. Contact + Approval share one app'
 
 When adding new utilities, decide which app's API they hit and inject the matching service. If you accidentally call HR endpoints (`/cgi-bin/hr/*`) with the contact secret, WeCom returns `errcode=48002 / 60011`.
 
+Because two `WxCpService` beans coexist by type, the contact one is marked `@Primary`. Utilities injecting a bare `WxCpService` (contact / approval / checkin / `WxApiClient`) resolve to it; only `WxHrRosterQueryUtil` uses `@Qualifier(HR_CP_SERVICE_BEAN_NAME)`. Dropping `@Primary` reintroduces a `NoUniqueBeanDefinitionException` on those bare injections whenever HR is configured.
+
+**HTTP backend constraint:** both services are instantiated as `WxCpServiceHttpComponentsImpl` (httpclient5), NOT the default `WxCpServiceImpl`. `WxCpServiceImpl` extends `WxCpServiceApacheHttpClientImpl`, which needs the legacy httpclient 4.x (`org.apache.http.*`), but the starter only ships httpclient5 transitively (`weixin-java-common` → `org.apache.httpcomponents.client5:httpclient5`). So `new WxCpServiceImpl()` throws `NoClassDefFoundError: org/apache/http/client/ResponseHandler` in any consumer that doesn't separately provide httpclient 4.x. Keep both factories on the HttpComponents (httpclient5) impl — do NOT "simplify" them back to `WxCpServiceImpl`.
+
 ### Configuration model (`WxCpProperties`, prefix `wx.cp`)
 
 Three nested groups, each with its own concurrency knobs:

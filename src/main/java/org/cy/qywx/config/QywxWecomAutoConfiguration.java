@@ -1,7 +1,7 @@
 package org.cy.qywx.config;
 
 import me.chanjar.weixin.cp.api.WxCpService;
-import me.chanjar.weixin.cp.api.impl.WxCpServiceImpl;
+import me.chanjar.weixin.cp.api.impl.WxCpServiceHttpComponentsImpl;
 import me.chanjar.weixin.cp.config.impl.WxCpDefaultConfigImpl;
 import org.cy.qywx.util.WxApiClient;
 import org.cy.qywx.util.WxApprovalQueryOptions;
@@ -18,6 +18,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -72,10 +73,11 @@ public class QywxWecomAutoConfiguration {
      * Copyright (c) CY
      */
     @Bean
+    @Primary
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = "wx.cp", name = {"corp-id", "corp-secret", "agent-id"})
     public WxCpService wxCpService(WxCpProperties properties) {
-        WxCpService service = new WxCpServiceImpl();
+        WxCpService service = new WxCpServiceHttpComponentsImpl();
         WxCpDefaultConfigImpl config = new WxCpDefaultConfigImpl();
         config.setCorpId(properties.getCorpId());
         config.setCorpSecret(properties.getCorpSecret());
@@ -175,7 +177,7 @@ public class QywxWecomAutoConfiguration {
     @ConditionalOnMissingBean(name = HR_CP_SERVICE_BEAN_NAME)
     @ConditionalOnProperty(prefix = "wx.cp", name = {"corp-id", "hr.secret"})
     public WxCpService qywxHrCpService(WxCpProperties properties) {
-        WxCpService service = new WxCpServiceImpl();
+        WxCpService service = new WxCpServiceHttpComponentsImpl();
         WxCpDefaultConfigImpl config = new WxCpDefaultConfigImpl();
         config.setCorpId(properties.getCorpId());
         config.setCorpSecret(properties.getHr().getSecret());
