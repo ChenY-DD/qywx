@@ -169,13 +169,43 @@ WxCpOaApprovalTemplateResult template = wxApprovalQueryUtil.getTemplateDetail("t
 Map<String, String> templateIds = wxApprovalQueryUtil.getTemplateIdsBySpNos(spNos);
 ```
 
-Approval detail structure:
+#### `WxApprovalDetailVO` Fields
 
-`WxApprovalDetailVO` exposes the parsed form and the full approval flow:
+| Field | Type | Description |
+|-------|------|-------------|
+| `spNo` | `String` | Approval number |
+| `spName` | `String` | Approval name |
+| `spStatus` | `String` | Status enum name (e.g. `AUDITING`, `PASSED`, `REJECTED`) |
+| `templateId` | `String` | Template ID |
+| `applyTime` | `Long` | Submit time (epoch seconds) |
+| `closeTime` | `Long` | Close time (epoch seconds); `null` while open |
+| `closeLoopDurationSeconds` | `Long` | Submit → close duration (seconds); `null` while open |
+| `currentDurationSeconds` | `Long` | Submit → now duration (seconds) |
+| `closed` | `Boolean` | Finished (status is not `AUDITING`) |
+| `createdToday` | `Boolean` | Submitted today |
+| `overdueOneDay` | `Boolean` | Open for more than one day |
+| `applicantUserId` | `String` | Applicant userId |
+| `applicantPartyId` | `String` | Applicant department ID |
+| `formItems` | `List<FormItem>` | Parsed form controls |
+| `nodes` | `List<Node>` | Full approval flow |
+| `comments` | `List<CommentItem>` | Comments |
 
-- `formItems` — form controls; composite controls (e.g. Resignation / 离职) are resolved recursively, so nested sub-controls are expanded rather than dropped.
-- `nodes` — the complete flow from `process_list.node_list`: approval, CC, and handler nodes (`nodeType` 1/2/3), more complete than the legacy `sp_record` view (which omits CC and some handler nodes).
-- timing fields (`closed`, `currentDurationSeconds`, `closeLoopDurationSeconds`, `overdueOneDay`) derived from `applyTime`. Approvals are queried by **submit time**, not by open/closed state.
+`FormItem` — `title`, `control`, `value`. Composite controls (e.g. Resignation / 离职) are resolved recursively, so nested sub-controls are expanded into `value` rather than dropped.
+
+`Node` — the full flow from `process_list.node_list` (includes the CC and handler nodes that the legacy `sp_record` omits):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `nodeType` | `Integer` | 1 = approval, 2 = CC, 3 = handler |
+| `spStatus` | `Integer` | Node status; `null` for CC nodes |
+| `apvRel` | `Integer` | Approval mode (countersign / or-sign); `null` for CC nodes |
+| `details` | `List<NodeDetail>` | Sub-nodes (approvers / CC recipients) |
+
+`NodeDetail` — `approverUserId`, `speech`, `spYj` (opinion type; `null` for CC), `spTime` (epoch seconds).
+
+`CommentItem` — `userId`, `content`, `commentTime` (epoch seconds).
+
+Approvals are queried by **submit time** (`applyTime`), not by open/closed state.
 
 ### Date Ranges
 

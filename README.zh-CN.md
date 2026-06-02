@@ -169,13 +169,43 @@ WxCpOaApprovalTemplateResult template = wxApprovalQueryUtil.getTemplateDetail("t
 Map<String, String> templateIds = wxApprovalQueryUtil.getTemplateIdsBySpNos(spNos);
 ```
 
-审批详情结构：
+#### `WxApprovalDetailVO` 字段
 
-`WxApprovalDetailVO` 同时提供解析后的表单和完整审批流程：
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `spNo` | `String` | 审批单号 |
+| `spName` | `String` | 审批名称 |
+| `spStatus` | `String` | 审批状态枚举名（如 `AUDITING`、`PASSED`、`REJECTED`） |
+| `templateId` | `String` | 审批模板 ID |
+| `applyTime` | `Long` | 提交时间（Unix 秒） |
+| `closeTime` | `Long` | 关闭时间（Unix 秒）；未结束时为 `null` |
+| `closeLoopDurationSeconds` | `Long` | 提交 → 关闭耗时（秒）；未结束时为 `null` |
+| `currentDurationSeconds` | `Long` | 提交 → 当前持续时长（秒） |
+| `closed` | `Boolean` | 是否已结束（状态非 `AUDITING`） |
+| `createdToday` | `Boolean` | 是否今天提交 |
+| `overdueOneDay` | `Boolean` | 是否未结束超过一天 |
+| `applicantUserId` | `String` | 申请人 userId |
+| `applicantPartyId` | `String` | 申请人所属部门 ID |
+| `formItems` | `List<FormItem>` | 解析后的表单项 |
+| `nodes` | `List<Node>` | 完整审批流程节点 |
+| `comments` | `List<CommentItem>` | 评论列表 |
 
-- `formItems` —— 表单控件；复合控件（如离职 Resignation）会递归解析，嵌套子控件会被展开而非丢弃。
-- `nodes` —— 来自 `process_list.node_list` 的完整流程：审批、抄送、办理节点（`nodeType` 1/2/3），比旧的 `sp_record` 更全（后者会漏掉抄送和部分办理节点）。
-- 计时字段（`closed`、`currentDurationSeconds`、`closeLoopDurationSeconds`、`overdueOneDay`）由 `applyTime` 推导。审批按**提交时间**查询，而非按是否闭环。
+`FormItem` —— `title`、`control`、`value`。复合控件（如离职 Resignation）会递归解析，嵌套子控件被展开进 `value`，而非丢弃。
+
+`Node` —— 来自 `process_list.node_list` 的完整流程（含旧 `sp_record` 漏掉的抄送、办理节点）：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `nodeType` | `Integer` | 1=审批、2=抄送、3=办理 |
+| `spStatus` | `Integer` | 节点状态；抄送节点为 `null` |
+| `apvRel` | `Integer` | 审批方式（会签 / 或签等）；抄送节点为 `null` |
+| `details` | `List<NodeDetail>` | 子节点（审批人 / 抄送人） |
+
+`NodeDetail` —— `approverUserId`、`speech`、`spYj`（意见类型；抄送为 `null`）、`spTime`（Unix 秒）。
+
+`CommentItem` —— `userId`、`content`、`commentTime`（Unix 秒）。
+
+审批按**提交时间**（`applyTime`）查询，而非按是否闭环。
 
 ### 日期范围
 
