@@ -7,8 +7,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import me.chanjar.weixin.cp.bean.oa.WxCpApprovalComment;
 import me.chanjar.weixin.cp.bean.oa.WxCpApprovalDetailResult;
-import me.chanjar.weixin.cp.bean.oa.WxCpApprovalRecord;
-import me.chanjar.weixin.cp.bean.oa.WxCpApprovalRecordDetail;
 import me.chanjar.weixin.cp.bean.oa.applydata.ApplyDataContent;
 import me.chanjar.weixin.cp.bean.oa.applydata.ContentTitle;
 import me.chanjar.weixin.cp.bean.oa.applydata.ContentValue;
@@ -116,6 +114,10 @@ public final class WxApprovalConverter {
     static WxApprovalDetailVO from(WxCpApprovalDetailResult detail, String rawJson, long nowEpochSecond) {
         WxApprovalDetailVO vo = from(detail, nowEpochSecond);
         enrichFromRawJson(vo, rawJson);
+        if (enrichNodesFromProcessList(vo, rawJson)) {
+            // 节点已替换为 process_list 的完整流程，依赖节点时间的计时字段需重算
+            fillTimingFields(vo, nowEpochSecond);
+        }
         return vo;
     }
 
@@ -148,7 +150,7 @@ public final class WxApprovalConverter {
         }
 
         vo.setFormItems(convertFormItems(info.getApplyData() == null ? null : info.getApplyData().getContents()));
-        vo.setNodes(convertNodes(info.getSpRecords()));
+        vo.setNodes(Collections.emptyList());
         vo.setComments(convertComments(info.getComments()));
         fillTimingFields(vo, nowEpochSecond);
         return vo;
@@ -281,53 +283,6 @@ public final class WxApprovalConverter {
             item.setControl(content.getControl());
             item.setValue(resolveValue(content));
             return item;
-        }).toList();
-    }
-
-    /**
-     * 转换节点列表。
-     *
-     * @param records 记录列表
-     * @return 列表结果
-     *
-     * @author cy
-     * Copyright (c) CY
-     */
-    private static List<WxApprovalDetailVO.Node> convertNodes(WxCpApprovalRecord[] records) {
-        if (records == null || records.length == 0) {
-            return Collections.emptyList();
-        }
-
-        return Stream.of(records).map(record -> {
-            WxApprovalDetailVO.Node node = new WxApprovalDetailVO.Node();
-            node.setNodeStatus(record.getStatus() == null ? null : record.getStatus().name());
-            node.setApproverAttr(record.getApproverAttr() == null ? null : record.getApproverAttr().name());
-            node.setDetails(convertNodeDetails(record.getDetails()));
-            return node;
-        }).toList();
-    }
-
-    /**
-     * 转换节点详情列表。
-     *
-     * @param details 详情列表
-     * @return 列表结果
-     *
-     * @author cy
-     * Copyright (c) CY
-     */
-    private static List<WxApprovalDetailVO.NodeDetail> convertNodeDetails(List<WxCpApprovalRecordDetail> details) {
-        if (details == null || details.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        return details.stream().map(detail -> {
-            WxApprovalDetailVO.NodeDetail nodeDetail = new WxApprovalDetailVO.NodeDetail();
-            nodeDetail.setApproverUserId(detail.getApprover() == null ? null : detail.getApprover().getUserId());
-            nodeDetail.setSpeech(detail.getSpeech());
-            nodeDetail.setSpStatus(detail.getSpStatus() == null ? null : detail.getSpStatus().name());
-            nodeDetail.setSpTime(detail.getSpTime());
-            return nodeDetail;
         }).toList();
     }
 
@@ -799,21 +754,201 @@ public final class WxApprovalConverter {
             return null;
         }
         List<String> parts = new ArrayList<>();
-        for (Map.Entry<String, JsonElement> entry : valueElement.getAsJsonObject().entrySet()) {
-            JsonElement child = entry.getValue();
-            if (child == null || !child.isJsonObject()) {
-                continue;
+        collectChildControls(valueElement, parts);
+        return parts.isEmpty() ? null : String.join(" | ", parts);
+    }
+
+    /**
+     * 递归收集复合控件 value 内的所有子控件并提取「标题: 值」。
+     *
+     * 复合控件（如离职 Resignation 的 value.resignation.*）可能把子控件包在若干层没有
+     * {@code control} 字段的对象之下；此处对任意此类包装层递归下钻，因此不限于离职模块，
+     * 任何带 control 的叶子控件无论嵌套多深都会被解析。
+     *
+     * @param element 当前 JSON 元素
+     * @param parts 收集到的「标题: 值」片段
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private static void collectChildControls(JsonElement element, List<String> parts) {
+        if (element == null) {
+            return;
+        }
+        if (element.isJsonArray()) {
+            for (JsonElement child : element.getAsJsonArray()) {
+                collectChildControls(child, parts);
             }
-            JsonObject childObject = child.getAsJsonObject();
-            if (!childObject.has("control")) {
-                continue;
-            }
-            ApplyDataContent sub = GSON.fromJson(childObject, ApplyDataContent.class);
+            return;
+        }
+        if (!element.isJsonObject()) {
+            return;
+        }
+        JsonObject object = element.getAsJsonObject();
+        if (object.has("control")) {
+            ApplyDataContent sub = GSON.fromJson(object, ApplyDataContent.class);
             String subValue = resolveValue(sub);
             if (subValue != null && !subValue.isBlank()) {
                 parts.add(resolveTitle(sub) + ": " + subValue);
             }
+            return;
         }
-        return parts.isEmpty() ? null : String.join(" | ", parts);
+        for (Map.Entry<String, JsonElement> entry : object.entrySet()) {
+            collectChildControls(entry.getValue(), parts);
+        }
+    }
+
+    /**
+     * 用原始 JSON 的 process_list.node_list 替换节点列表（WxJava 未映射该字段）。
+     *
+     * @param vo 审批详情业务视图对象
+     * @param rawJson 审批详情接口的原始 JSON 响应
+     * @return 是否成功用 process_list 节点替换了 vo 的节点列表
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private static boolean enrichNodesFromProcessList(WxApprovalDetailVO vo, String rawJson) {
+        if (vo == null || rawJson == null || rawJson.isBlank()) {
+            return false;
+        }
+        JsonArray nodeList = extractProcessNodeList(rawJson);
+        if (nodeList == null || nodeList.isEmpty()) {
+            return false;
+        }
+        List<WxApprovalDetailVO.Node> nodes = new ArrayList<>();
+        for (JsonElement element : nodeList) {
+            if (!element.isJsonObject()) {
+                continue;
+            }
+            JsonObject nodeObject = element.getAsJsonObject();
+            WxApprovalDetailVO.Node node = new WxApprovalDetailVO.Node();
+            node.setNodeType(getInteger(nodeObject, "node_type"));
+            node.setSpStatus(getInteger(nodeObject, "sp_status"));
+            node.setApvRel(getInteger(nodeObject, "apv_rel"));
+            node.setDetails(convertSubNodes(nodeObject.get("sub_node_list")));
+            nodes.add(node);
+        }
+        vo.setNodes(nodes);
+        return true;
+    }
+
+    /**
+     * 从原始 JSON 中提取审批流程节点数组 info.process_list.node_list。
+     *
+     * @param rawJson 审批详情接口的原始 JSON 响应
+     * @return JSON数组
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private static JsonArray extractProcessNodeList(String rawJson) {
+        try {
+            JsonElement root = JsonParser.parseString(rawJson);
+            if (!root.isJsonObject()) {
+                return null;
+            }
+            JsonElement info = root.getAsJsonObject().get("info");
+            if (info == null || !info.isJsonObject()) {
+                return null;
+            }
+            JsonElement processList = info.getAsJsonObject().get("process_list");
+            if (processList == null || !processList.isJsonObject()) {
+                return null;
+            }
+            JsonElement nodeList = processList.getAsJsonObject().get("node_list");
+            return nodeList != null && nodeList.isJsonArray() ? nodeList.getAsJsonArray() : null;
+        } catch (RuntimeException e) {
+            log.warn("Failed to parse process_list.node_list from raw approval JSON: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 转换流程节点的子节点（审批人 / 抄送人）列表。
+     *
+     * @param subNodeListElement sub_node_list JSON 元素
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private static List<WxApprovalDetailVO.NodeDetail> convertSubNodes(JsonElement subNodeListElement) {
+        if (subNodeListElement == null || !subNodeListElement.isJsonArray()) {
+            return Collections.emptyList();
+        }
+        List<WxApprovalDetailVO.NodeDetail> details = new ArrayList<>();
+        for (JsonElement element : subNodeListElement.getAsJsonArray()) {
+            if (!element.isJsonObject()) {
+                continue;
+            }
+            JsonObject subNodeObject = element.getAsJsonObject();
+            WxApprovalDetailVO.NodeDetail detail = new WxApprovalDetailVO.NodeDetail();
+            detail.setApproverUserId(getString(subNodeObject, "userid"));
+            detail.setSpeech(getString(subNodeObject, "speech"));
+            detail.setSpYj(getInteger(subNodeObject, "sp_yj"));
+            detail.setSpTime(getLong(subNodeObject, "sptime"));
+            details.add(detail);
+        }
+        return details;
+    }
+
+    /**
+     * 安全读取 JSON 对象中的整数字段。
+     *
+     * @param object JSON 对象
+     * @param key 字段名
+     * @return 整数值，字段缺失或非数字时为 null
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private static Integer getInteger(JsonObject object, String key) {
+        JsonElement element = object.get(key);
+        if (element == null || !element.isJsonPrimitive()) {
+            return null;
+        }
+        try {
+            return element.getAsInt();
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * 安全读取 JSON 对象中的长整数字段。
+     *
+     * @param object JSON 对象
+     * @param key 字段名
+     * @return 长整数值，字段缺失或非数字时为 null
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private static Long getLong(JsonObject object, String key) {
+        JsonElement element = object.get(key);
+        if (element == null || !element.isJsonPrimitive()) {
+            return null;
+        }
+        try {
+            return element.getAsLong();
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * 安全读取 JSON 对象中的字符串字段。
+     *
+     * @param object JSON 对象
+     * @param key 字段名
+     * @return 字符串值，字段缺失或非基本类型时为 null
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private static String getString(JsonObject object, String key) {
+        JsonElement element = object.get(key);
+        return element != null && element.isJsonPrimitive() ? element.getAsString() : null;
     }
 }

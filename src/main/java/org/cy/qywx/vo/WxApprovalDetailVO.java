@@ -113,7 +113,7 @@ public class WxApprovalDetailVO implements Serializable {
      */
     private List<FormItem> formItems;
     /**
-     * 字段说明：节点列表。
+     * 字段说明：审批流程节点列表（来自 process_list.node_list，含审批 / 抄送 / 办理节点）。
      *
      * @author cy
      * Copyright (c) CY
@@ -167,21 +167,28 @@ public class WxApprovalDetailVO implements Serializable {
     @Data
     public static class Node implements Serializable {
         /**
-         * 字段说明：节点状态。
+         * 字段说明：节点类型。1=审批、2=抄送、3=办理（对应 process_list.node_list[].node_type）。
          *
          * @author cy
          * Copyright (c) CY
          */
-        private String nodeStatus;
+        private Integer nodeType;
         /**
-         * 字段说明：审批人属性。
+         * 字段说明：节点审批状态（对应 sp_status；抄送节点无此字段，为 null）。
          *
          * @author cy
          * Copyright (c) CY
          */
-        private String approverAttr;
+        private Integer spStatus;
         /**
-         * 字段说明：详情列表。
+         * 字段说明：审批方式（对应 apv_rel；抄送节点无此字段，为 null）。
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
+        private Integer apvRel;
+        /**
+         * 字段说明：子节点（审批人 / 抄送人）列表（对应 sub_node_list）。
          *
          * @author cy
          * Copyright (c) CY
@@ -198,28 +205,28 @@ public class WxApprovalDetailVO implements Serializable {
     @Data
     public static class NodeDetail implements Serializable {
         /**
-         * 字段说明：审批人 userId。
+         * 字段说明：成员 userId（对应 sub_node_list[].userid）。
          *
          * @author cy
          * Copyright (c) CY
          */
         private String approverUserId;
         /**
-         * 字段说明：审批意见。
+         * 字段说明：审批意见（对应 speech；抄送节点无）。
          *
          * @author cy
          * Copyright (c) CY
          */
         private String speech;
         /**
-         * 字段说明：审批状态。
+         * 字段说明：审批意见类型（对应 sp_yj；抄送节点无此字段，为 null）。
          *
          * @author cy
          * Copyright (c) CY
          */
-        private String spStatus;
+        private Integer spYj;
         /**
-         * 字段说明：审批时间。
+         * 字段说明：审批 / 抄送时间（对应 sptime）。
          *
          * @author cy
          * Copyright (c) CY

@@ -285,6 +285,90 @@ class WxApprovalConverterTest {
         assertEquals("离职", vo.getFormItems().get(0).getTitle(), "标题应优先取简体中文而非英文");
     }
 
+    @Test
+    void shouldParseProcessListNodesIncludingCcAndHandler() {
+        WxCpApprovalDetailResult.WxCpApprovalDetail detail = new WxCpApprovalDetailResult.WxCpApprovalDetail();
+        detail.setSpNo("202606010001");
+        detail.setApplyTime(1L);
+        WxCpApprovalDetailResult result = new WxCpApprovalDetailResult();
+        result.setInfo(detail);
+
+        String rawJson = """
+                {"errcode":0,"info":{"sp_no":"202606010001","process_list":{"node_list":[
+                  {"node_type":2,"sub_node_list":[{"userid":"LiBiJun","media_ids":[]},{"userid":"RenShiHangZhengBu","media_ids":[]},{"userid":"WengYuYang","media_ids":[]}]},
+                  {"node_type":1,"sp_status":1,"apv_rel":3,"sub_node_list":[{"userid":"JiaoJun","speech":"","sp_yj":1,"sptime":0,"media_ids":[]},{"userid":"KongLuXing","speech":"","sp_yj":1,"sptime":0,"media_ids":[]}]},
+                  {"node_type":1,"sp_status":1,"apv_rel":2,"sub_node_list":[{"userid":"LiBiJun","speech":"","sp_yj":1,"sptime":0,"media_ids":[]}]},
+                  {"node_type":1,"sp_status":1,"apv_rel":2,"sub_node_list":[{"userid":"WengYuYang","speech":"","sp_yj":1,"sptime":0,"media_ids":[]}]},
+                  {"node_type":1,"sp_status":1,"apv_rel":2,"sub_node_list":[{"userid":"Wengsir","speech":"","sp_yj":1,"sptime":0,"media_ids":[]}]},
+                  {"node_type":3,"sp_status":1,"apv_rel":2,"sub_node_list":[{"userid":"HuYuanLing","speech":"","sp_yj":1,"sptime":0,"media_ids":[]},{"userid":"LiBiJun","speech":"","sp_yj":1,"sptime":0,"media_ids":[]},{"userid":"RenShiHangZhengBu","speech":"","sp_yj":1,"sptime":0,"media_ids":[]}]},
+                  {"node_type":2,"sub_node_list":[{"userid":"HuYuanLing","media_ids":[]},{"userid":"LiBiJun","media_ids":[]},{"userid":"RenShiHangZhengBu","media_ids":[]},{"userid":"WuJiaYi","media_ids":[]}]}
+                ]}}}
+                """;
+
+        WxApprovalDetailVO vo = WxApprovalConverter.from(result, rawJson);
+
+        assertEquals(7, vo.getNodes().size(), "应解析出 process_list.node_list 的全部 7 个节点");
+
+        WxApprovalDetailVO.Node cc = vo.getNodes().get(0);
+        assertEquals(2, cc.getNodeType(), "第 1 个节点应为抄送（node_type=2）");
+        assertEquals(3, cc.getDetails().size(), "第 1 个抄送节点应有 3 个抄送人");
+        assertEquals("LiBiJun", cc.getDetails().get(0).getApproverUserId(), "应保留抄送人 userId");
+
+        WxApprovalDetailVO.Node approval = vo.getNodes().get(1);
+        assertEquals(1, approval.getNodeType(), "第 2 个节点应为审批（node_type=1）");
+        assertEquals(3, approval.getApvRel(), "应保留审批方式 apv_rel");
+        assertEquals(2, approval.getDetails().size(), "会签节点应有 2 个审批人");
+        assertEquals(1, approval.getDetails().get(0).getSpYj(), "应保留子节点审批意见类型 sp_yj");
+
+        WxApprovalDetailVO.Node handler = vo.getNodes().get(5);
+        assertEquals(3, handler.getNodeType(), "第 6 个节点应为办理（node_type=3），sp_record 中缺失");
+        assertTrue(handler.getDetails().stream().anyMatch(d -> "HuYuanLing".equals(d.getApproverUserId())),
+                "第 6 个节点应包含 sp_record 漏掉的 HuYuanLing");
+    }
+
+    @Test
+    void shouldMergeNestedResignationContainerFromRawJson() {
+        ContentTitle title = new ContentTitle();
+        title.setText("离职");
+        title.setLang("zh_CN");
+        ApplyDataContent content = new ApplyDataContent();
+        content.setControl("Resignation");
+        content.setId("Resignation-1652025600");
+        content.setTitles(List.of(title));
+        content.setValue(new ContentValue());
+
+        WxCpApprovalApplyData applyData = new WxCpApprovalApplyData();
+        applyData.setContents(List.of(content));
+        WxCpApprovalDetailResult.WxCpApprovalDetail detail = new WxCpApprovalDetailResult.WxCpApprovalDetail();
+        detail.setSpNo("sp-resign-nested");
+        detail.setApplyTime(1L);
+        detail.setApplyData(applyData);
+        WxCpApprovalDetailResult result = new WxCpApprovalDetailResult();
+        result.setInfo(detail);
+
+        // 真实离职数据：子控件包在 value.resignation.* 这一层之下（而非直接挂在 value 下）
+        String rawJson = """
+                {"errcode":0,"info":{"apply_data":{"contents":[
+                  {"control":"Resignation","id":"Resignation-1652025600","title":[{"text":"离职","lang":"zh_CN"}],
+                   "value":{"tips":[],"members":[],"departments":[],"resignation":{
+                     "date":{"control":"Date","id":"Date-1","title":[{"text":"离职日期","lang":"zh_CN"}],"value":{"date":{"type":"day","s_timestamp":"1782748800"}}},
+                     "reason":{"control":"Textarea","id":"Textarea-1","title":[{"text":"离职原因","lang":"zh_CN"}],"value":{"text":"个人发展规划"}},
+                     "remark":{"control":"Textarea","id":"Textarea-2","title":[{"text":"离职备注","lang":"zh_CN"}],"value":{"text":"无"}}
+                   },"docs":[],"wedrive_files":[]}}
+                ]}}}
+                """;
+
+        WxApprovalDetailVO vo = WxApprovalConverter.from(result, rawJson);
+
+        assertEquals(1, vo.getFormItems().size(), "离职容器仍应是一个表单项");
+        String value = vo.getFormItems().get(0).getValue();
+        assertNotNull(value, "嵌套离职容器（value.resignation.*）的值不应为空");
+        assertTrue(value.contains("离职原因"), "应递归进入 resignation 嵌套层解析子控件，实际: " + value);
+        assertTrue(value.contains("个人发展规划"), "应包含离职原因内容，实际: " + value);
+        assertTrue(value.contains("离职日期"), "应包含离职日期标题，实际: " + value);
+        assertTrue(value.contains("离职备注"), "应包含离职备注标题，实际: " + value);
+    }
+
     /**
      * 构造仅包含单个表单控件的审批详情，返回该表单项解析后的值。
      */
