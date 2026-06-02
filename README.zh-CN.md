@@ -28,7 +28,7 @@
 <dependency>
     <groupId>org.cy</groupId>
     <artifactId>qywx-wecom-spring-boot-starter</artifactId>
-    <version>1.0.2</version>
+    <version>2.0.4</version>
 </dependency>
 ```
 
@@ -168,6 +168,14 @@ List<WxApprovalTemplateVO> templates = wxApprovalQueryUtil.getTemplates(range);
 WxCpOaApprovalTemplateResult template = wxApprovalQueryUtil.getTemplateDetail("template_id");
 Map<String, String> templateIds = wxApprovalQueryUtil.getTemplateIdsBySpNos(spNos);
 ```
+
+审批详情结构：
+
+`WxApprovalDetailVO` 同时提供解析后的表单和完整审批流程：
+
+- `formItems` —— 表单控件；复合控件（如离职 Resignation）会递归解析，嵌套子控件会被展开而非丢弃。
+- `nodes` —— 来自 `process_list.node_list` 的完整流程：审批、抄送、办理节点（`nodeType` 1/2/3），比旧的 `sp_record` 更全（后者会漏掉抄送和部分办理节点）。
+- 计时字段（`closed`、`currentDurationSeconds`、`closeLoopDurationSeconds`、`overdueOneDay`）由 `applyTime` 推导。审批按**提交时间**查询，而非按是否闭环。
 
 ### 日期范围
 

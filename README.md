@@ -28,7 +28,7 @@ It wraps `weixin-java-cp` with business-oriented utilities, so application code 
 <dependency>
     <groupId>org.cy</groupId>
     <artifactId>qywx-wecom-spring-boot-starter</artifactId>
-    <version>1.0.2</version>
+    <version>2.0.4</version>
 </dependency>
 ```
 
@@ -168,6 +168,14 @@ List<WxApprovalTemplateVO> templates = wxApprovalQueryUtil.getTemplates(range);
 WxCpOaApprovalTemplateResult template = wxApprovalQueryUtil.getTemplateDetail("template_id");
 Map<String, String> templateIds = wxApprovalQueryUtil.getTemplateIdsBySpNos(spNos);
 ```
+
+Approval detail structure:
+
+`WxApprovalDetailVO` exposes the parsed form and the full approval flow:
+
+- `formItems` — form controls; composite controls (e.g. Resignation / 离职) are resolved recursively, so nested sub-controls are expanded rather than dropped.
+- `nodes` — the complete flow from `process_list.node_list`: approval, CC, and handler nodes (`nodeType` 1/2/3), more complete than the legacy `sp_record` view (which omits CC and some handler nodes).
+- timing fields (`closed`, `currentDurationSeconds`, `closeLoopDurationSeconds`, `overdueOneDay`) derived from `applyTime`. Approvals are queried by **submit time**, not by open/closed state.
 
 ### Date Ranges
 
