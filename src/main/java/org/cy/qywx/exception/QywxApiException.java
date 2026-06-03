@@ -11,6 +11,9 @@ import me.chanjar.weixin.common.error.WxErrorException;
  */
 public class QywxApiException extends RuntimeException {
 
+    /** 序列化版本号 */
+    private static final long serialVersionUID = 1L;
+
     /** 企业微信错误码 */
     private final Integer errCode;
     /** 企业微信错误信息 */
@@ -24,7 +27,19 @@ public class QywxApiException extends RuntimeException {
      * @param errMsg  错误信息
      */
     public QywxApiException(String message, Integer errCode, String errMsg) {
-        super(message);
+        this(message, errCode, errMsg, null);
+    }
+
+    /**
+     * 构造异常（保留原始异常的 cause 链）。
+     *
+     * @param message 异常消息
+     * @param errCode 错误码
+     * @param errMsg  错误信息
+     * @param cause   原始异常
+     */
+    public QywxApiException(String message, Integer errCode, String errMsg, Throwable cause) {
+        super(message, cause);
         this.errCode = errCode;
         this.errMsg = errMsg;
     }
@@ -39,7 +54,7 @@ public class QywxApiException extends RuntimeException {
         WxError error = e.getError();
         Integer code = error == null ? null : error.getErrorCode();
         String msg = error == null ? e.getMessage() : error.getErrorMsg();
-        return new QywxApiException("WeCom API error: errcode=" + code + ", errmsg=" + msg, code, msg);
+        return new QywxApiException("WeCom API error: errcode=" + code + ", errmsg=" + msg, code, msg, e);
     }
 
     /**

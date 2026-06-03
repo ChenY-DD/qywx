@@ -44,4 +44,12 @@ class QywxApiExceptionTest {
         assertThat(ex.getErrMsg()).contains("fallback");
         assertThat(ex).isInstanceOf(RuntimeException.class);
     }
+
+    @Test
+    void fromChainsOriginalAsCause() {
+        WxErrorException original =
+                new WxErrorException(WxError.builder().errorCode(40014).errorMsg("x").build());
+        QywxApiException ex = QywxApiException.from(original);
+        assertThat(ex.getCause()).isSameAs(original);
+    }
 }
