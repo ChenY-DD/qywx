@@ -25,6 +25,9 @@ public class WxExportUtil {
     /** WeCom 导出任务完成状态：1=处理中，2=完成，3=异常。 */
     private static final int STATUS_FINISHED = 2;
 
+    /** WeCom 导出任务异常状态：3=异常（失败终态）。 */
+    private static final int STATUS_FAILED = 3;
+
     /** 企业微信服务（联系人/导出 scope） */
     private final WxCpService wxCpService;
 
@@ -140,6 +143,9 @@ public class WxExportUtil {
             WxExportResultVO result = getResult(jobId);
             if (result.getStatus() != null && result.getStatus() == STATUS_FINISHED) {
                 return result;
+            }
+            if (result.getStatus() != null && result.getStatus() == STATUS_FAILED) {
+                throw new QywxApiException("export job failed: jobId=" + jobId + ", status=" + STATUS_FAILED, null, "export job failed");
             }
             if (System.nanoTime() >= deadlineNanos) {
                 break;

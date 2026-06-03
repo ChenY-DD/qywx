@@ -63,6 +63,18 @@ class WxExportUtilTest {
     }
 
     @Test
+    void exportAndWaitFailsFastOnFailedStatus() throws Exception {
+        when(exportService.user(any(WxCpExportRequest.class))).thenReturn("JOB1");
+        when(exportService.getResult("JOB1")).thenReturn(result(3));
+
+        WxExportUtil util = newUtil(new WxExportQueryOptions(0L, 60_000L, 5));
+        assertThatThrownBy(() -> util.exportAndWait(WxExportType.USER, new WxCpExportRequest()))
+                .isInstanceOf(QywxApiException.class)
+                .hasMessageContaining("failed");
+        verify(exportService, times(1)).getResult("JOB1");
+    }
+
+    @Test
     void getResultWrapsWxErrorException() throws Exception {
         when(exportService.getResult("bad"))
                 .thenThrow(new WxErrorException(WxError.builder().errorCode(60020).errorMsg("no").build()));
