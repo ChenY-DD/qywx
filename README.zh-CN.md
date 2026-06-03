@@ -28,7 +28,7 @@
 <dependency>
     <groupId>org.cy</groupId>
     <artifactId>qywx-wecom-spring-boot-starter</artifactId>
-    <version>2.0.7</version>
+    <version>2.0.8</version>
 </dependency>
 ```
 
@@ -228,17 +228,28 @@ if (block != null) {
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `spNo` | `String` | 审批单号 |
-| `closed` | `Boolean` | 是否已结束（复用 detail） |
-| `applyTime` | `Long` | 提交时间，Unix 秒（复用） |
-| `submittedToNowSeconds` | `Long` | 提交 → 当前时长，秒（复用） |
+| `spName` | `String` | 审批名称 |
+| `spStatus` | `String` | 审批状态中文文本（审批中 / 已通过 / 已驳回 / 已撤销 / 通过后撤销 / 已删除 / 已支付） |
+| `templateId` | `String` | 审批模板 ID |
+| `applyTime` | `Long` | 提交时间，Unix 秒 |
+| `closeTime` | `Long` | 关闭时间，Unix 秒；未结束为 `null` |
+| `closeLoopDurationSeconds` | `Long` | 提交 → 关闭耗时，秒；未结束为 `null` |
+| `submittedToNowSeconds` | `Long` | 提交 → 当前时长，秒 |
+| `closed` | `Boolean` | 是否已结束 |
+| `createdToday` | `Boolean` | 是否今天提交 |
+| `overdueOneDay` | `Boolean` | 是否未结束超过一天 |
+| `applicantUserId` | `String` | 申请人 userId |
+| `applicantPartyId` | `String` | 申请人部门 ID |
 | `nodeChain` | `List<NodeProgress>` | 审批 + 办理节点，按流程顺序 |
 | `currentBlock` | `CurrentBlock` | 当前卡点；已结束时为 `null` |
 
-`NodeProgress` —— `index`、`nodeType`、`apvRel`（1会签 / 2或签 / 3依次审批）、`spStatus`、`approverUserIds`、`startTime`、`completeTime`、`durationSeconds`（单节点耗时；未完成为 `null`）、`blocked`、`pendingUserIds`。
+所有枚举字段均输出**中文文本**而非原始数字。
+
+`NodeProgress` —— `index`、`nodeType`（审批 / 办理）、`apvRel`（会签 / 或签 / 依次审批）、`spStatus`（审批中 / 同意 / 驳回 / …）、`approverUserIds`、`startTime`、`completeTime`、`durationSeconds`（单节点耗时；未完成为 `null`）、`blocked`、`pendingUserIds`。
 
 `CurrentBlock` —— `nodeIndex`、`blockingUserIds`、`waitingSeconds`（now − 节点开始）、`nextApproverUserIds`。
 
-节点完成判定按 `apvRel`：或签（`2`）任一审批人处理即完成（取最早处理时间）；会签 / 依次审批需全部处理（取最晚处理时间）。
+节点完成判定按办理方式：或签任一审批人处理即完成（取最早处理时间）；会签 / 依次审批需全部处理（取最晚处理时间）。
 
 审批按**提交时间**（`applyTime`）查询，而非按是否闭环。
 

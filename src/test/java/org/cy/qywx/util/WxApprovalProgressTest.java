@@ -23,9 +23,17 @@ class WxApprovalProgressTest {
         vo.setClosed(false);
         vo.setApplyTime(1_000L);
         vo.setCurrentDurationSeconds(4_000L);
+        vo.setSpName("请假申请单");
+        vo.setTemplateId("tpl-xyz");
+        vo.setCreatedToday(false);
+        vo.setOverdueOneDay(true);
+        vo.setApplicantUserId("LiXiaoMin");
+        vo.setApplicantPartyId("17");
+        WxApprovalDetailVO.Node orSignNode = node(1, 2, detail("A", 2_000L)); // 或签：A 已处理 → 完成
+        orSignNode.setSpStatus(2);                                            // 节点状态=同意
         vo.setNodes(List.of(
                 node(2, null, detail("CC1", 0L)),                       // 抄送：应被排除
-                node(1, 2, detail("A", 2_000L)),                        // 或签：A 已处理 → 完成
+                orSignNode,
                 node(1, 1, detail("B", 0L), detail("C", 0L)),           // 会签：均未处理 → 卡点
                 node(3, 2, detail("D", 0L))                             // 办理：尚未开始
         ));
@@ -34,13 +42,21 @@ class WxApprovalProgressTest {
 
         assertNotNull(progress);
         assertEquals("sp-100", progress.getSpNo());
+        assertEquals("请假申请单", progress.getSpName());
+        assertEquals("审批中", progress.getSpStatus());
+        assertEquals("tpl-xyz", progress.getTemplateId());
+        assertEquals("LiXiaoMin", progress.getApplicantUserId());
+        assertEquals("17", progress.getApplicantPartyId());
+        assertTrue(Boolean.TRUE.equals(progress.getOverdueOneDay()));
         assertFalse(Boolean.TRUE.equals(progress.getClosed()));
         assertEquals(1_000L, progress.getApplyTime());
         assertEquals(4_000L, progress.getSubmittedToNowSeconds());
         assertEquals(3, progress.getNodeChain().size(), "抄送节点应被排除，只剩 3 个流转节点");
 
         WxApprovalProgressVO.NodeProgress first = progress.getNodeChain().get(0);
-        assertEquals(1, first.getNodeType());
+        assertEquals("审批", first.getNodeType());
+        assertEquals("或签", first.getApvRel());
+        assertEquals("同意", first.getSpStatus());
         assertEquals(List.of("A"), first.getApproverUserIds());
         assertEquals(1_000L, first.getStartTime());
         assertEquals(2_000L, first.getCompleteTime());
@@ -48,6 +64,7 @@ class WxApprovalProgressTest {
         assertFalse(first.isBlocked());
 
         WxApprovalProgressVO.NodeProgress blocked = progress.getNodeChain().get(1);
+        assertEquals("会签", blocked.getApvRel());
         assertEquals(List.of("B", "C"), blocked.getApproverUserIds());
         assertEquals(2_000L, blocked.getStartTime(), "卡点节点开始时刻 = 上一节点完成时刻");
         assertNull(blocked.getCompleteTime());
@@ -56,7 +73,7 @@ class WxApprovalProgressTest {
         assertEquals(List.of("B", "C"), blocked.getPendingUserIds());
 
         WxApprovalProgressVO.NodeProgress notStarted = progress.getNodeChain().get(2);
-        assertEquals(3, notStarted.getNodeType());
+        assertEquals("办理", notStarted.getNodeType());
         assertNull(notStarted.getStartTime(), "卡点之后的节点尚未开始");
         assertNull(notStarted.getCompleteTime());
         assertFalse(notStarted.isBlocked());
@@ -95,6 +112,8 @@ class WxApprovalProgressTest {
         vo.setClosed(true);
         vo.setApplyTime(1_000L);
         vo.setCurrentDurationSeconds(8_000L);
+        vo.setCloseTime(5_000L);
+        vo.setCloseLoopDurationSeconds(4_000L);
         vo.setNodes(List.of(
                 node(1, 1, detail("A", 2_000L)),                        // 已处理（驳回）
                 node(1, 1, detail("B", 0L))                             // 未轮到
@@ -103,6 +122,9 @@ class WxApprovalProgressTest {
         WxApprovalProgressVO progress = WxApprovalConverter.toProgress(vo, 9_000L);
 
         assertTrue(Boolean.TRUE.equals(progress.getClosed()));
+        assertEquals("已驳回", progress.getSpStatus());
+        assertEquals(5_000L, progress.getCloseTime());
+        assertEquals(4_000L, progress.getCloseLoopDurationSeconds());
         assertNull(progress.getCurrentBlock(), "已结束单不应有当前卡点");
         assertEquals(1_000L, progress.getNodeChain().get(0).getDurationSeconds(),
                 "历史节点耗时仍照常计算 = 2000 - 1000");

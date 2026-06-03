@@ -8,9 +8,10 @@ import java.util.List;
 /**
  * 类说明：审批流转进度与卡点分析视图对象。
  *
- * <p>由 {@link WxApprovalDetailVO} 的 {@code nodes}（来自 process_list.node_list）派生，
- * 提供审批人链路、各节点耗时、当前卡点（卡在谁 / 已等待多久 / 下一个审批人）等时效分析信息。
- * 仅统计审批（node_type=1）与办理（node_type=3）节点，抄送（node_type=2）不计入。</p>
+ * <p>由 {@link WxApprovalDetailVO} 派生，除携带审批单基本信息外，基于其 {@code nodes}
+ * （来自 process_list.node_list）计算审批人链路、各节点耗时、当前卡点（卡在谁 / 已等待多久 /
+ * 下一个审批人）等时效分析信息。仅统计审批（node_type=1）与办理（node_type=3）节点，
+ * 抄送（node_type=2）不计入。所有枚举字段均输出中文文本而非原始数值。</p>
  *
  * @author cy
  * Copyright (c) CY
@@ -26,19 +27,47 @@ public class WxApprovalProgressVO implements Serializable {
      */
     private String spNo;
     /**
-     * 字段说明：审批是否已结束（复用 WxApprovalDetailVO.closed）。
+     * 字段说明：审批名称。
      *
      * @author cy
      * Copyright (c) CY
      */
-    private Boolean closed;
+    private String spName;
     /**
-     * 字段说明：审批申请提交时间（epoch 秒，复用 WxApprovalDetailVO.applyTime）。
+     * 字段说明：审批状态中文文本（如 审批中 / 已通过 / 已驳回 / 已撤销 / 通过后撤销 / 已删除 / 已支付）。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private String spStatus;
+    /**
+     * 字段说明：审批模板 ID。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private String templateId;
+    /**
+     * 字段说明：审批申请提交时间（epoch 秒）。
      *
      * @author cy
      * Copyright (c) CY
      */
     private Long applyTime;
+    /**
+     * 字段说明：审批关闭时间（epoch 秒）；未结束时为 null。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private Long closeTime;
+    /**
+     * 字段说明：审批从提交到关闭的耗时（秒）；未结束时为 null。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private Long closeLoopDurationSeconds;
     /**
      * 字段说明：从提交到当前的持续时长（秒，复用 WxApprovalDetailVO.currentDurationSeconds）。
      *
@@ -46,6 +75,41 @@ public class WxApprovalProgressVO implements Serializable {
      * Copyright (c) CY
      */
     private Long submittedToNowSeconds;
+    /**
+     * 字段说明：审批是否已结束。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private Boolean closed;
+    /**
+     * 字段说明：审批是否今天创建。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private Boolean createdToday;
+    /**
+     * 字段说明：审批是否已超过一天未结束。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private Boolean overdueOneDay;
+    /**
+     * 字段说明：申请人 userId。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private String applicantUserId;
+    /**
+     * 字段说明：申请人所属部门 ID。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private String applicantPartyId;
     /**
      * 字段说明：审批流转链路（仅审批 / 办理节点，按流程顺序，排除抄送）。
      *
@@ -77,26 +141,26 @@ public class WxApprovalProgressVO implements Serializable {
          */
         private int index;
         /**
-         * 字段说明：节点类型（1=审批、3=办理）。
+         * 字段说明：节点类型中文文本（审批 / 办理）。
          *
          * @author cy
          * Copyright (c) CY
          */
-        private Integer nodeType;
+        private String nodeType;
         /**
-         * 字段说明：多人办理方式（1=会签、2=或签、3=依次审批）。
+         * 字段说明：多人办理方式中文文本（会签 / 或签 / 依次审批）。
          *
          * @author cy
          * Copyright (c) CY
          */
-        private Integer apvRel;
+        private String apvRel;
         /**
-         * 字段说明：节点状态（对应 process_list.node_list[].sp_status）。
+         * 字段说明：节点状态中文文本（审批中 / 同意 / 驳回 / 转审 / 退回 / 加签 / 同意并加签 / 办理 / 转交）。
          *
          * @author cy
          * Copyright (c) CY
          */
-        private Integer spStatus;
+        private String spStatus;
         /**
          * 字段说明：本节点的处理人 userId 列表。
          *

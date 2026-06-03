@@ -232,9 +232,18 @@ public final class WxApprovalConverter {
 
         WxApprovalProgressVO progress = new WxApprovalProgressVO();
         progress.setSpNo(vo.getSpNo());
-        progress.setClosed(vo.getClosed());
+        progress.setSpName(vo.getSpName());
+        progress.setSpStatus(spStatusText(vo.getSpStatus()));
+        progress.setTemplateId(vo.getTemplateId());
         progress.setApplyTime(vo.getApplyTime());
+        progress.setCloseTime(vo.getCloseTime());
+        progress.setCloseLoopDurationSeconds(vo.getCloseLoopDurationSeconds());
         progress.setSubmittedToNowSeconds(vo.getCurrentDurationSeconds());
+        progress.setClosed(vo.getClosed());
+        progress.setCreatedToday(vo.getCreatedToday());
+        progress.setOverdueOneDay(vo.getOverdueOneDay());
+        progress.setApplicantUserId(vo.getApplicantUserId());
+        progress.setApplicantPartyId(vo.getApplicantPartyId());
 
         List<WxApprovalProgressVO.NodeProgress> chain = new ArrayList<>();
         Long prevCompleteTime = vo.getApplyTime();
@@ -245,9 +254,9 @@ public final class WxApprovalConverter {
             WxApprovalDetailVO.Node node = chainNodes.get(i);
             WxApprovalProgressVO.NodeProgress np = new WxApprovalProgressVO.NodeProgress();
             np.setIndex(i);
-            np.setNodeType(node.getNodeType());
-            np.setApvRel(node.getApvRel());
-            np.setSpStatus(node.getSpStatus());
+            np.setNodeType(nodeTypeName(node.getNodeType()));
+            np.setApvRel(apvRelName(node.getApvRel()));
+            np.setSpStatus(nodeStatusName(node.getSpStatus()));
             np.setApproverUserIds(approverUserIds(node));
             np.setPendingUserIds(pendingUserIds(node));
 
@@ -418,6 +427,100 @@ public final class WxApprovalConverter {
                 ? chain.get(blockIndex + 1).getApproverUserIds()
                 : Collections.emptyList());
         return block;
+    }
+
+    /**
+     * 将节点类型数值转为中文文本。
+     *
+     * @param nodeType 节点类型
+     * @return string
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private static String nodeTypeName(Integer nodeType) {
+        if (nodeType == null) {
+            return null;
+        }
+        return switch (nodeType) {
+            case 1 -> "审批";
+            case 2 -> "抄送";
+            case 3 -> "办理";
+            default -> String.valueOf(nodeType);
+        };
+    }
+
+    /**
+     * 将多人办理方式数值转为中文文本。
+     *
+     * @param apvRel 多人办理方式
+     * @return string
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private static String apvRelName(Integer apvRel) {
+        if (apvRel == null) {
+            return null;
+        }
+        return switch (apvRel) {
+            case 1 -> "会签";
+            case 2 -> "或签";
+            case 3 -> "依次审批";
+            default -> String.valueOf(apvRel);
+        };
+    }
+
+    /**
+     * 将节点状态数值转为中文文本。
+     *
+     * @param spStatus 节点状态
+     * @return string
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private static String nodeStatusName(Integer spStatus) {
+        if (spStatus == null) {
+            return null;
+        }
+        return switch (spStatus) {
+            case 1 -> "审批中";
+            case 2 -> "同意";
+            case 3 -> "驳回";
+            case 4 -> "转审";
+            case 11 -> "退回";
+            case 12 -> "加签";
+            case 13 -> "同意并加签";
+            case 14 -> "办理";
+            case 15 -> "转交";
+            default -> String.valueOf(spStatus);
+        };
+    }
+
+    /**
+     * 将整单审批状态枚举名（WxCpSpStatus）转为中文文本。
+     *
+     * @param spStatus 审批状态枚举名
+     * @return string
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private static String spStatusText(String spStatus) {
+        if (spStatus == null) {
+            return null;
+        }
+        return switch (spStatus) {
+            case "AUDITING" -> "审批中";
+            case "PASSED" -> "已通过";
+            case "REJECTED" -> "已驳回";
+            case "UNDONE" -> "已撤销";
+            case "PASS_UNDONE" -> "通过后撤销";
+            case "DELETED" -> "已删除";
+            case "ALREADY_PAY" -> "已支付";
+            default -> spStatus;
+        };
     }
 
     /**

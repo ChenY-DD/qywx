@@ -28,7 +28,7 @@ It wraps `weixin-java-cp` with business-oriented utilities, so application code 
 <dependency>
     <groupId>org.cy</groupId>
     <artifactId>qywx-wecom-spring-boot-starter</artifactId>
-    <version>2.0.7</version>
+    <version>2.0.8</version>
 </dependency>
 ```
 
@@ -228,17 +228,28 @@ if (block != null) {
 | Field | Type | Description |
 |-------|------|-------------|
 | `spNo` | `String` | Approval number |
-| `closed` | `Boolean` | Finished (reused from detail) |
-| `applyTime` | `Long` | Submit time, epoch seconds (reused) |
-| `submittedToNowSeconds` | `Long` | Submit → now duration, seconds (reused) |
+| `spName` | `String` | Approval name |
+| `spStatus` | `String` | Status as Chinese text (审批中 / 已通过 / 已驳回 / 已撤销 / 通过后撤销 / 已删除 / 已支付) |
+| `templateId` | `String` | Template ID |
+| `applyTime` | `Long` | Submit time, epoch seconds |
+| `closeTime` | `Long` | Close time, epoch seconds; `null` while open |
+| `closeLoopDurationSeconds` | `Long` | Submit → close duration, seconds; `null` while open |
+| `submittedToNowSeconds` | `Long` | Submit → now duration, seconds |
+| `closed` | `Boolean` | Finished |
+| `createdToday` | `Boolean` | Submitted today |
+| `overdueOneDay` | `Boolean` | Open for more than one day |
+| `applicantUserId` | `String` | Applicant userId |
+| `applicantPartyId` | `String` | Applicant department ID |
 | `nodeChain` | `List<NodeProgress>` | Approval + handler nodes in flow order |
 | `currentBlock` | `CurrentBlock` | Current bottleneck; `null` when finished |
 
-`NodeProgress` — `index`, `nodeType`, `apvRel` (1 countersign / 2 or-sign / 3 sequential), `spStatus`, `approverUserIds`, `startTime`, `completeTime`, `durationSeconds` (per node; `null` if unfinished), `blocked`, `pendingUserIds`.
+All enum fields are emitted as **Chinese text**, not raw numbers.
+
+`NodeProgress` — `index`, `nodeType` (审批 / 办理), `apvRel` (会签 / 或签 / 依次审批), `spStatus` (审批中 / 同意 / 驳回 / …), `approverUserIds`, `startTime`, `completeTime`, `durationSeconds` (per node; `null` if unfinished), `blocked`, `pendingUserIds`.
 
 `CurrentBlock` — `nodeIndex`, `blockingUserIds`, `waitingSeconds` (now − node start), `nextApproverUserIds`.
 
-Per-node completion follows `apvRel`: or-sign (`2`) completes when any approver acts (earliest action time); countersign / sequential need all approvers (latest action time).
+Per-node completion follows the approval mode: or-sign completes when any approver acts (earliest action time); countersign / sequential need all approvers (latest action time).
 
 Approvals are queried by **submit time** (`applyTime`), not by open/closed state.
 

@@ -64,17 +64,29 @@
 
 ## 6. 输出结构 `WxApprovalProgressVO`
 
+携带审批单基本信息 + 流转分析；所有枚举字段输出**中文文本**而非原始数字。
+
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | `spNo` | `String` | 审批单号 |
-| `closed` | `Boolean` | 是否已结束（复用） |
-| `applyTime` | `Long` | 提交时间，Unix 秒（复用） |
+| `spName` | `String` | 审批名称 |
+| `spStatus` | `String` | 审批状态中文（审批中 / 已通过 / 已驳回 / 已撤销 / 通过后撤销 / 已删除 / 已支付） |
+| `templateId` | `String` | 审批模板 ID |
+| `applyTime` | `Long` | 提交时间，Unix 秒 |
+| `closeTime` | `Long` | 关闭时间，Unix 秒；未结束 `null` |
+| `closeLoopDurationSeconds` | `Long` | 提交 → 关闭耗时，秒；未结束 `null` |
 | `submittedToNowSeconds` | `Long` | 提交 → 当前时长，秒（复用 `currentDurationSeconds`） |
+| `closed` | `Boolean` | 是否已结束 |
+| `createdToday` | `Boolean` | 是否今天提交 |
+| `overdueOneDay` | `Boolean` | 是否未结束超过一天 |
+| `applicantUserId` | `String` | 申请人 userId |
+| `applicantPartyId` | `String` | 申请人部门 ID |
 | `nodeChain` | `List<NodeProgress>` | 审批 + 办理节点，按流程顺序 |
 | `currentBlock` | `CurrentBlock` | 当前卡点；已结束时 `null` |
 
-- `NodeProgress`：`index`、`nodeType`、`apvRel`、`spStatus`、`approverUserIds`、`startTime`、`completeTime`、`durationSeconds`、`blocked`、`pendingUserIds`。
+- `NodeProgress`：`index`、`nodeType`（审批 / 办理）、`apvRel`（会签 / 或签 / 依次审批）、`spStatus`（审批中 / 同意 / 驳回 / …）、`approverUserIds`、`startTime`、`completeTime`、`durationSeconds`、`blocked`、`pendingUserIds`。
 - `CurrentBlock`：`nodeIndex`、`blockingUserIds`、`waitingSeconds`、`nextApproverUserIds`。
+- 枚举映射（数值 → 中文）集中在 `WxApprovalConverter` 的 `nodeTypeName` / `apvRelName` / `nodeStatusName` / `spStatusText`。
 
 ## 7. 实现位置与风格
 
