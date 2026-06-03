@@ -9,6 +9,8 @@ import me.chanjar.weixin.cp.bean.intelligentrobot.WxCpIntelligentRobotChatReques
 import me.chanjar.weixin.cp.bean.intelligentrobot.WxCpIntelligentRobotChatResponse;
 import me.chanjar.weixin.cp.bean.intelligentrobot.WxCpIntelligentRobotCreateRequest;
 import me.chanjar.weixin.cp.bean.intelligentrobot.WxCpIntelligentRobotCreateResponse;
+import me.chanjar.weixin.cp.bean.intelligentrobot.WxCpIntelligentRobotSendMessageRequest;
+import me.chanjar.weixin.cp.bean.intelligentrobot.WxCpIntelligentRobotSendMessageResponse;
 import org.cy.qywx.exception.QywxApiException;
 import org.junit.jupiter.api.Test;
 
@@ -60,6 +62,18 @@ class WxIntelligentRobotUtilTest {
 
         WxRobotChatVO vo = newUtil().chat(new WxCpIntelligentRobotChatRequest());
         assertThat(vo.getReply()).isEqualTo("hi");
+        assertThat(vo.getSessionId()).isEqualTo("s1");
+    }
+
+    @Test
+    void sendMessageMapsToVo() throws Exception {
+        WxCpIntelligentRobotSendMessageResponse resp = new WxCpIntelligentRobotSendMessageResponse();
+        resp.setMsgId("m1");
+        resp.setSessionId("s1");
+        when(robotService.sendMessage(any(WxCpIntelligentRobotSendMessageRequest.class))).thenReturn(resp);
+
+        WxRobotSendResultVO vo = newUtil().sendMessage(new WxCpIntelligentRobotSendMessageRequest());
+        assertThat(vo.getMsgId()).isEqualTo("m1");
         assertThat(vo.getSessionId()).isEqualTo("s1");
     }
 
