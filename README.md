@@ -28,7 +28,7 @@ It wraps `weixin-java-cp` with business-oriented utilities, so application code 
 <dependency>
     <groupId>org.cy</groupId>
     <artifactId>qywx-wecom-spring-boot-starter</artifactId>
-    <version>2.0.6</version>
+    <version>2.0.7</version>
 </dependency>
 ```
 
@@ -198,12 +198,47 @@ Map<String, String> templateIds = wxApprovalQueryUtil.getTemplateIdsBySpNos(spNo
 |-------|------|-------------|
 | `nodeType` | `Integer` | 1 = approval, 2 = CC, 3 = handler |
 | `spStatus` | `Integer` | Node status; `null` for CC nodes |
-| `apvRel` | `Integer` | Approval mode (countersign / or-sign); `null` for CC nodes |
+| `apvRel` | `Integer` | Multi-approver mode (1 countersign / 2 or-sign / 3 sequential); `null` for CC nodes |
 | `details` | `List<NodeDetail>` | Sub-nodes (approvers / CC recipients) |
 
-`NodeDetail` — `approverUserId`, `speech`, `spYj` (opinion type; `null` for CC), `spTime` (epoch seconds).
+`NodeDetail` — `approverUserId`, `speech`, `spYj` (sub-node status; `null` for CC), `spTime` (epoch seconds).
 
 `CommentItem` — `userId`, `content`, `commentTime` (epoch seconds).
+
+#### `WxApprovalProgressVO` — Flow Progress Analysis
+
+`WxApprovalConverter.toProgress(detail)` derives a flow-timing view from a `WxApprovalDetailVO`'s `nodes`: who approved, how long each node took, where the approval is currently stuck, and who is next. Only approval (`node_type=1`) and handler (`node_type=3`) nodes are counted; CC nodes are excluded.
+
+```java
+WxApprovalDetailVO detail = details.get(0);
+WxApprovalProgressVO progress = WxApprovalConverter.toProgress(detail);
+
+for (WxApprovalProgressVO.NodeProgress node : progress.getNodeChain()) {
+    // node.getApproverUserIds(), node.getDurationSeconds(), node.isBlocked()
+}
+
+WxApprovalProgressVO.CurrentBlock block = progress.getCurrentBlock(); // null when finished
+if (block != null) {
+    block.getBlockingUserIds();      // who it is stuck on
+    block.getWaitingSeconds();       // how long it has waited at this node
+    block.getNextApproverUserIds();  // who is next
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `spNo` | `String` | Approval number |
+| `closed` | `Boolean` | Finished (reused from detail) |
+| `applyTime` | `Long` | Submit time, epoch seconds (reused) |
+| `submittedToNowSeconds` | `Long` | Submit → now duration, seconds (reused) |
+| `nodeChain` | `List<NodeProgress>` | Approval + handler nodes in flow order |
+| `currentBlock` | `CurrentBlock` | Current bottleneck; `null` when finished |
+
+`NodeProgress` — `index`, `nodeType`, `apvRel` (1 countersign / 2 or-sign / 3 sequential), `spStatus`, `approverUserIds`, `startTime`, `completeTime`, `durationSeconds` (per node; `null` if unfinished), `blocked`, `pendingUserIds`.
+
+`CurrentBlock` — `nodeIndex`, `blockingUserIds`, `waitingSeconds` (now − node start), `nextApproverUserIds`.
+
+Per-node completion follows `apvRel`: or-sign (`2`) completes when any approver acts (earliest action time); countersign / sequential need all approvers (latest action time).
 
 Approvals are queried by **submit time** (`applyTime`), not by open/closed state.
 

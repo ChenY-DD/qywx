@@ -181,7 +181,7 @@ public class WxApprovalDetailVO implements Serializable {
          */
         private Integer spStatus;
         /**
-         * 字段说明：审批方式（对应 apv_rel；抄送节点无此字段，为 null）。
+         * 字段说明：多人办理方式（对应 apv_rel：1会签 / 2或签 / 3依次审批；抄送节点无此字段，为 null）。
          *
          * @author cy
          * Copyright (c) CY
@@ -219,7 +219,7 @@ public class WxApprovalDetailVO implements Serializable {
          */
         private String speech;
         /**
-         * 字段说明：审批意见类型（对应 sp_yj；抄送节点无此字段，为 null）。
+         * 字段说明：子节点状态（对应 sub_node_list[].sp_yj：1审批中 / 2同意 / 3驳回 / 4转审 / 11退回 / 12加签 / 13同意并加签 / 14办理 / 15转交；抄送节点无此字段，为 null）。
          *
          * @author cy
          * Copyright (c) CY

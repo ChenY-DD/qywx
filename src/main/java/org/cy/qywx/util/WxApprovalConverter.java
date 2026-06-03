@@ -11,6 +11,7 @@ import me.chanjar.weixin.cp.bean.oa.applydata.ApplyDataContent;
 import me.chanjar.weixin.cp.bean.oa.applydata.ContentTitle;
 import me.chanjar.weixin.cp.bean.oa.applydata.ContentValue;
 import org.cy.qywx.vo.WxApprovalDetailVO;
+import org.cy.qywx.vo.WxApprovalProgressVO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +43,27 @@ public final class WxApprovalConverter {
      * Copyright (c) CY
      */
     private static final long ONE_DAY_SECONDS = 24L * 60 * 60;
+    /**
+     * 字段说明：流转节点类型——审批人。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private static final int NODE_TYPE_APPROVAL = 1;
+    /**
+     * 字段说明：流转节点类型——办理人。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private static final int NODE_TYPE_HANDLER = 3;
+    /**
+     * 字段说明：多人办理方式——或签（任一处理即完成；apv_rel=2，会签 / 依次审批需全部处理）。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private static final int APV_REL_OR_SIGN = 2;
     /**
      * 字段说明：默认时区。
      *
@@ -178,6 +200,224 @@ public final class WxApprovalConverter {
                         LinkedHashMap::new,
                         Collectors.toList()
                 ));
+    }
+
+    /**
+     * 由审批详情业务对象派生审批流转进度与卡点分析对象。
+     *
+     * @param vo 审批详情业务视图对象
+     * @return 审批流转进度视图对象
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    public static WxApprovalProgressVO toProgress(WxApprovalDetailVO vo) {
+        return toProgress(vo, Instant.now().getEpochSecond());
+    }
+
+    /**
+     * 由审批详情业务对象派生审批流转进度与卡点分析对象。
+     *
+     * @param vo 审批详情业务视图对象
+     * @param nowEpochSecond nowepoch秒
+     * @return 审批流转进度视图对象
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    static WxApprovalProgressVO toProgress(WxApprovalDetailVO vo, long nowEpochSecond) {
+        if (vo == null) {
+            return null;
+        }
+
+        WxApprovalProgressVO progress = new WxApprovalProgressVO();
+        progress.setSpNo(vo.getSpNo());
+        progress.setClosed(vo.getClosed());
+        progress.setApplyTime(vo.getApplyTime());
+        progress.setSubmittedToNowSeconds(vo.getCurrentDurationSeconds());
+
+        List<WxApprovalProgressVO.NodeProgress> chain = new ArrayList<>();
+        Long prevCompleteTime = vo.getApplyTime();
+        int blockIndex = -1;
+
+        List<WxApprovalDetailVO.Node> chainNodes = chainNodes(vo.getNodes());
+        for (int i = 0; i < chainNodes.size(); i++) {
+            WxApprovalDetailVO.Node node = chainNodes.get(i);
+            WxApprovalProgressVO.NodeProgress np = new WxApprovalProgressVO.NodeProgress();
+            np.setIndex(i);
+            np.setNodeType(node.getNodeType());
+            np.setApvRel(node.getApvRel());
+            np.setSpStatus(node.getSpStatus());
+            np.setApproverUserIds(approverUserIds(node));
+            np.setPendingUserIds(pendingUserIds(node));
+
+            if (blockIndex >= 0) {
+                // 已出现卡点，后续节点尚未开始：startTime / completeTime / durationSeconds 保持 null
+                chain.add(np);
+                continue;
+            }
+
+            np.setStartTime(prevCompleteTime);
+            Long completeTime = resolveNodeCompleteTime(node);
+            if (completeTime != null) {
+                np.setCompleteTime(completeTime);
+                if (prevCompleteTime != null) {
+                    np.setDurationSeconds(Math.max(0L, completeTime - prevCompleteTime));
+                }
+                prevCompleteTime = completeTime;
+            } else {
+                // 第一个未完成节点即当前卡点
+                np.setBlocked(true);
+                blockIndex = i;
+            }
+            chain.add(np);
+        }
+        progress.setNodeChain(chain);
+
+        if (Boolean.TRUE.equals(vo.getClosed())) {
+            // 已结束的审批没有当前卡点；清除遍历中可能误标的卡点，但保留历史节点耗时
+            chain.forEach(np -> np.setBlocked(false));
+            progress.setCurrentBlock(null);
+        } else if (blockIndex >= 0) {
+            progress.setCurrentBlock(buildCurrentBlock(chain, blockIndex, nowEpochSecond));
+        }
+        return progress;
+    }
+
+    /**
+     * 过滤出参与流转的审批 / 办理节点（排除抄送），保持原顺序。
+     *
+     * @param nodes 全部流程节点
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private static List<WxApprovalDetailVO.Node> chainNodes(List<WxApprovalDetailVO.Node> nodes) {
+        if (nodes == null || nodes.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<WxApprovalDetailVO.Node> result = new ArrayList<>();
+        for (WxApprovalDetailVO.Node node : nodes) {
+            if (node == null || node.getNodeType() == null) {
+                continue;
+            }
+            int type = node.getNodeType();
+            if (type == NODE_TYPE_APPROVAL || type == NODE_TYPE_HANDLER) {
+                result.add(node);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 计算节点完成时刻：或签任一处理即完成（取最早处理时间）；会签 / 依次审批需全部处理（取最晚处理时间）；未完成返回 null。
+     *
+     * @param node 流程节点
+     * @return long
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private static Long resolveNodeCompleteTime(WxApprovalDetailVO.Node node) {
+        List<WxApprovalDetailVO.NodeDetail> details = node.getDetails();
+        if (details == null || details.isEmpty()) {
+            return null;
+        }
+        List<Long> doneTimes = new ArrayList<>();
+        boolean anyPending = false;
+        for (WxApprovalDetailVO.NodeDetail detail : details) {
+            Long spTime = detail == null ? null : detail.getSpTime();
+            if (spTime != null && spTime > 0L) {
+                doneTimes.add(spTime);
+            } else {
+                anyPending = true;
+            }
+        }
+        boolean orSign = node.getApvRel() != null && node.getApvRel() == APV_REL_OR_SIGN;
+        if (orSign) {
+            return doneTimes.isEmpty() ? null : Collections.min(doneTimes);
+        }
+        if (anyPending || doneTimes.isEmpty()) {
+            return null;
+        }
+        return Collections.max(doneTimes);
+    }
+
+    /**
+     * 收集节点全部处理人 userId（按子节点顺序）。
+     *
+     * @param node 流程节点
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private static List<String> approverUserIds(WxApprovalDetailVO.Node node) {
+        List<WxApprovalDetailVO.NodeDetail> details = node.getDetails();
+        if (details == null || details.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<String> result = new ArrayList<>();
+        for (WxApprovalDetailVO.NodeDetail detail : details) {
+            if (detail != null) {
+                result.add(detail.getApproverUserId());
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 收集节点尚未处理（sptime 为空 / 0）的人 userId。
+     *
+     * @param node 流程节点
+     * @return 列表结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private static List<String> pendingUserIds(WxApprovalDetailVO.Node node) {
+        List<WxApprovalDetailVO.NodeDetail> details = node.getDetails();
+        if (details == null || details.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<String> result = new ArrayList<>();
+        for (WxApprovalDetailVO.NodeDetail detail : details) {
+            if (detail == null) {
+                continue;
+            }
+            Long spTime = detail.getSpTime();
+            if (spTime == null || spTime <= 0L) {
+                result.add(detail.getApproverUserId());
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 构造当前卡点信息（卡在哪些人、已等待多久、下一个处理人）。
+     *
+     * @param chain 流转节点链路
+     * @param blockIndex 卡点节点下标
+     * @param nowEpochSecond nowepoch秒
+     * @return 当前卡点
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private static WxApprovalProgressVO.CurrentBlock buildCurrentBlock(
+            List<WxApprovalProgressVO.NodeProgress> chain, int blockIndex, long nowEpochSecond) {
+        WxApprovalProgressVO.NodeProgress blocked = chain.get(blockIndex);
+        WxApprovalProgressVO.CurrentBlock block = new WxApprovalProgressVO.CurrentBlock();
+        block.setNodeIndex(blockIndex);
+        block.setBlockingUserIds(blocked.getPendingUserIds());
+        if (blocked.getStartTime() != null) {
+            block.setWaitingSeconds(Math.max(0L, nowEpochSecond - blocked.getStartTime()));
+        }
+        block.setNextApproverUserIds(blockIndex + 1 < chain.size()
+                ? chain.get(blockIndex + 1).getApproverUserIds()
+                : Collections.emptyList());
+        return block;
     }
 
     /**

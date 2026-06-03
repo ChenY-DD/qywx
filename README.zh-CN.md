@@ -28,7 +28,7 @@
 <dependency>
     <groupId>org.cy</groupId>
     <artifactId>qywx-wecom-spring-boot-starter</artifactId>
-    <version>2.0.6</version>
+    <version>2.0.7</version>
 </dependency>
 ```
 
@@ -198,12 +198,47 @@ Map<String, String> templateIds = wxApprovalQueryUtil.getTemplateIdsBySpNos(spNo
 |------|------|------|
 | `nodeType` | `Integer` | 1=审批、2=抄送、3=办理 |
 | `spStatus` | `Integer` | 节点状态；抄送节点为 `null` |
-| `apvRel` | `Integer` | 审批方式（会签 / 或签等）；抄送节点为 `null` |
+| `apvRel` | `Integer` | 多人办理方式（1=会签、2=或签、3=依次审批）；抄送节点为 `null` |
 | `details` | `List<NodeDetail>` | 子节点（审批人 / 抄送人） |
 
-`NodeDetail` —— `approverUserId`、`speech`、`spYj`（意见类型；抄送为 `null`）、`spTime`（Unix 秒）。
+`NodeDetail` —— `approverUserId`、`speech`、`spYj`（子节点状态；抄送为 `null`）、`spTime`（Unix 秒）。
 
 `CommentItem` —— `userId`、`content`、`commentTime`（Unix 秒）。
+
+#### `WxApprovalProgressVO` —— 审批流转进度分析
+
+`WxApprovalConverter.toProgress(detail)` 基于 `WxApprovalDetailVO` 的 `nodes` 派生流转时效视图：谁审批了、每个节点耗时多久、当前卡在谁、下一个审批人是谁。仅统计审批（`node_type=1`）与办理（`node_type=3`）节点，抄送节点不计入。
+
+```java
+WxApprovalDetailVO detail = details.get(0);
+WxApprovalProgressVO progress = WxApprovalConverter.toProgress(detail);
+
+for (WxApprovalProgressVO.NodeProgress node : progress.getNodeChain()) {
+    // node.getApproverUserIds()、node.getDurationSeconds()、node.isBlocked()
+}
+
+WxApprovalProgressVO.CurrentBlock block = progress.getCurrentBlock(); // 已结束时为 null
+if (block != null) {
+    block.getBlockingUserIds();      // 卡在哪些人
+    block.getWaitingSeconds();       // 在当前节点已等待多久
+    block.getNextApproverUserIds();  // 下一个审批人
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `spNo` | `String` | 审批单号 |
+| `closed` | `Boolean` | 是否已结束（复用 detail） |
+| `applyTime` | `Long` | 提交时间，Unix 秒（复用） |
+| `submittedToNowSeconds` | `Long` | 提交 → 当前时长，秒（复用） |
+| `nodeChain` | `List<NodeProgress>` | 审批 + 办理节点，按流程顺序 |
+| `currentBlock` | `CurrentBlock` | 当前卡点；已结束时为 `null` |
+
+`NodeProgress` —— `index`、`nodeType`、`apvRel`（1会签 / 2或签 / 3依次审批）、`spStatus`、`approverUserIds`、`startTime`、`completeTime`、`durationSeconds`（单节点耗时；未完成为 `null`）、`blocked`、`pendingUserIds`。
+
+`CurrentBlock` —— `nodeIndex`、`blockingUserIds`、`waitingSeconds`（now − 节点开始）、`nextApproverUserIds`。
+
+节点完成判定按 `apvRel`：或签（`2`）任一审批人处理即完成（取最早处理时间）；会签 / 依次审批需全部处理（取最晚处理时间）。
 
 审批按**提交时间**（`applyTime`）查询，而非按是否闭环。
 
