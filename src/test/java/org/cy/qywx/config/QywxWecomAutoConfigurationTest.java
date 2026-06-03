@@ -5,6 +5,10 @@ import org.cy.qywx.util.WxApprovalQueryUtil;
 import org.cy.qywx.util.WxCheckinQueryUtil;
 import org.cy.qywx.util.WxContactQueryUtil;
 import org.cy.qywx.util.WxHrRosterQueryUtil;
+import org.cy.qywx.util.export.WxExportUtil;
+import org.cy.qywx.util.message.WxMessagePushUtil;
+import org.cy.qywx.util.oauth2.WxOauth2Util;
+import org.cy.qywx.util.robot.WxIntelligentRobotUtil;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -85,5 +89,15 @@ class QywxWecomAutoConfigurationTest {
                     assertThat(context).hasSingleBean(WxContactQueryUtil.class);
                     assertThat(context).hasSingleBean(WxHrRosterQueryUtil.class);
                 });
+    }
+
+    @Test
+    void newModuleBeansRegisteredWhenCpServicePresent() {
+        contextRunner.run(context -> {
+            assertThat(context).hasSingleBean(WxMessagePushUtil.class);
+            assertThat(context).hasSingleBean(WxOauth2Util.class);
+            assertThat(context).hasSingleBean(WxIntelligentRobotUtil.class);
+            assertThat(context).hasSingleBean(WxExportUtil.class);
+        });
     }
 }

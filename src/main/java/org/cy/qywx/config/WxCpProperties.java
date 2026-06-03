@@ -53,6 +53,13 @@ public class WxCpProperties {
      * Copyright (c) CY
      */
     private Checkin checkin = new Checkin();
+    /**
+     * 字段说明：异步导出配置。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private Export export = new Export();
 
     /**
      * 获取企业ID。
@@ -196,6 +203,30 @@ public class WxCpProperties {
      */
     public void setCheckin(Checkin checkin) {
         this.checkin = checkin;
+    }
+
+    /**
+     * 获取异步导出。
+     *
+     * @return 异步导出
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    public Export getExport() {
+        return export;
+    }
+
+    /**
+     * 设置异步导出。
+     *
+     * @param export 异步导出配置
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    public void setExport(Export export) {
+        this.export = export;
     }
 
     /**
@@ -780,6 +811,108 @@ public class WxCpProperties {
          */
         public void setExecutorThreads(int executorThreads) {
             this.executorThreads = executorThreads;
+        }
+    }
+
+    /**
+     * 类说明：异步导出。
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    public static class Export {
+        /**
+         * 字段说明：轮询间隔毫秒。
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
+        private long pollIntervalMillis = 2000L;
+        /**
+         * 字段说明：轮询总超时毫秒。
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
+        private long pollTimeoutMillis = 60000L;
+        /**
+         * 字段说明：最大轮询次数。
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
+        private int maxPollAttempts = 30;
+
+        /**
+         * 获取轮询间隔毫秒。
+         *
+         * @return 轮询间隔毫秒
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
+        public long getPollIntervalMillis() {
+            return pollIntervalMillis;
+        }
+
+        /**
+         * 设置轮询间隔毫秒。
+         *
+         * @param pollIntervalMillis 轮询间隔毫秒
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
+        public void setPollIntervalMillis(long pollIntervalMillis) {
+            this.pollIntervalMillis = pollIntervalMillis;
+        }
+
+        /**
+         * 获取轮询总超时毫秒。
+         *
+         * @return 轮询总超时毫秒
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
+        public long getPollTimeoutMillis() {
+            return pollTimeoutMillis;
+        }
+
+        /**
+         * 设置轮询总超时毫秒。
+         *
+         * @param pollTimeoutMillis 轮询总超时毫秒
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
+        public void setPollTimeoutMillis(long pollTimeoutMillis) {
+            this.pollTimeoutMillis = pollTimeoutMillis;
+        }
+
+        /**
+         * 获取最大轮询次数。
+         *
+         * @return 最大轮询次数
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
+        public int getMaxPollAttempts() {
+            return maxPollAttempts;
+        }
+
+        /**
+         * 设置最大轮询次数。
+         *
+         * @param maxPollAttempts 最大轮询次数
+         *
+         * @author cy
+         * Copyright (c) CY
+         */
+        public void setMaxPollAttempts(int maxPollAttempts) {
+            this.maxPollAttempts = maxPollAttempts;
         }
     }
 }

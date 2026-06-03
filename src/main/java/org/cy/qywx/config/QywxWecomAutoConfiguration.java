@@ -10,6 +10,11 @@ import org.cy.qywx.util.WxCheckinQueryOptions;
 import org.cy.qywx.util.WxCheckinQueryUtil;
 import org.cy.qywx.util.WxContactQueryUtil;
 import org.cy.qywx.util.WxHrRosterQueryUtil;
+import org.cy.qywx.util.export.WxExportQueryOptions;
+import org.cy.qywx.util.export.WxExportUtil;
+import org.cy.qywx.util.message.WxMessagePushUtil;
+import org.cy.qywx.util.oauth2.WxOauth2Util;
+import org.cy.qywx.util.robot.WxIntelligentRobotUtil;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -281,5 +286,76 @@ public class QywxWecomAutoConfiguration {
                 c.getRequestsPerSecond()
         );
         return new WxCheckinQueryUtil(wxCpService, checkinExecutor, options);
+    }
+
+    /**
+     * 执行 wxMessagePushUtil 相关逻辑。
+     *
+     * @param wxCpService 企业微信企业微信service
+     * @return 消息推送util工具
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnBean(WxCpService.class)
+    public WxMessagePushUtil wxMessagePushUtil(WxCpService wxCpService) {
+        return new WxMessagePushUtil(wxCpService);
+    }
+
+    /**
+     * 执行 wxOauth2Util 相关逻辑。
+     *
+     * @param wxCpService 企业微信企业微信service
+     * @return 网页授权util工具
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnBean(WxCpService.class)
+    public WxOauth2Util wxOauth2Util(WxCpService wxCpService) {
+        return new WxOauth2Util(wxCpService);
+    }
+
+    /**
+     * 执行 wxIntelligentRobotUtil 相关逻辑。
+     *
+     * @param wxCpService 企业微信企业微信service
+     * @return 智能机器人util工具
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnBean(WxCpService.class)
+    public WxIntelligentRobotUtil wxIntelligentRobotUtil(WxCpService wxCpService) {
+        return new WxIntelligentRobotUtil(wxCpService);
+    }
+
+    /**
+     * 执行 wxExportUtil 相关逻辑。
+     *
+     * @param wxCpService 企业微信企业微信service
+     * @param properties properties
+     * @return 异步导出util工具
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnBean(WxCpService.class)
+    public WxExportUtil wxExportUtil(WxCpService wxCpService, WxCpProperties properties) {
+        WxCpProperties.Export e = properties.getExport();
+        WxExportQueryOptions options = new WxExportQueryOptions(
+                e.getPollIntervalMillis(),
+                e.getPollTimeoutMillis(),
+                e.getMaxPollAttempts()
+        );
+        return new WxExportUtil(wxCpService, options);
     }
 }
