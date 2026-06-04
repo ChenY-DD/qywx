@@ -339,6 +339,185 @@ WxAttendanceReportVO report = wxCheckinQueryUtil.getAttendanceReport(range, user
 - `getLocationExceptions`
 - `getDeviceExceptions`
 
+### 消息推送
+
+`WxMessagePushUtil` 注入主 `WxCpService`，封装企业微信**应用消息**的发送与撤回；所有企业微信受检异常统一转为非受检的 `QywxApiException`（含 `errCode` / `errMsg`）。
+
+```java
+// 1) 文本 / Markdown / 文本卡片便捷方法（接收人为成员 userId，多个用 | 分隔，@all 发给全部）
+WxMessageSendResultVO r = wxMessagePushUtil.sendText("zhangsan|lisi", "构建完成 ✅");
+wxMessagePushUtil.sendMarkdown("zhangsan", "**发布成功**\n> 版本 v2.0.8 已上线");
+wxMessagePushUtil.sendTextCard("zhangsan",
+        "服务器告警", "CPU 持续 95%，请尽快处理",
+        "https://ops.example.com/alert/1", "查看详情");
+
+// 2) 其他消息类型（图片/语音/视频/图文/文件/卡片等）：用 WxCpMessage builder 构造后调 send()
+WxCpMessage file = WxCpMessage.FILE().toUser("zhangsan").mediaId("MEDIA_ID").build();
+wxMessagePushUtil.send(file);
+
+// 3) 撤回（msgId 来自发送结果）
+wxMessagePushUtil.recall(r.getMsgId());
+```
+
+方法与参数：
+
+- `send(WxCpMessage message)` —— 发送任意类型应用消息。
+  - `message`：企业微信消息对象，用 `WxCpMessage.TEXT()/MARKDOWN()/TEXTCARD()/IMAGE()/VOICE()/VIDEO()/NEWS()/MPNEWS()/FILE()/TASKCARD()/TEMPLATECARD()` 等 builder 构造；接收人由 builder 的 `toUser`（成员 userId，`|` 分隔，`@all` 全部）/ `toParty`（部门 id，`|` 分隔）/ `toTag`（标签 id，`|` 分隔）设置；不设 `agentId` 时使用配置中的应用。
+  - 返回 `WxMessageSendResultVO`：`msgId`（消息 ID，撤回用）、`responseCode`（撤回票据）、`invalidUser` / `invalidParty` / `invalidTag`（无效的成员 / 部门 / 标签，`|` 分隔）、`unlicensedUser`（未付费许可的成员）。
+- `sendText(String toUser, String content)` —— 发送文本消息。
+  - `toUser`：接收成员 userId，多个用 `|` 分隔，`@all` 发给全部。
+  - `content`：文本内容。
+- `sendMarkdown(String toUser, String content)` —— 发送 Markdown 消息。
+  - `toUser`：同上。
+  - `content`：Markdown 内容。
+- `sendTextCard(String toUser, String title, String description, String url, String btnTxt)` —— 发送文本卡片消息。
+  - `toUser`：同上。
+  - `title`：卡片标题。
+  - `description`：卡片描述。
+  - `url`：点击卡片后跳转的链接。
+  - `btnTxt`：按钮文字（如「查看详情」）。
+- `recall(String msgId)` —— 撤回已发送的应用消息。
+  - `msgId`：发送结果中的消息 ID。
+
+### 网页授权登录
+
+`WxOauth2Util` 注入主 `WxCpService`，封装企业微信**网页授权（OAuth2）**登录：构造授权链接 → 用 `code` 换取成员标识 → 用 `user_ticket` 换取成员敏感详情。`buildAuthorizationUrl` 为纯字符串拼接、不发起网络请求；另两个方法的受检异常转为 `QywxApiException`。
+
+```java
+// 第 1 步：构造授权链接，重定向用户浏览器
+String authUrl = wxOauth2Util.buildAuthorizationUrl(
+        "https://app.example.com/wecom/callback", // 授权后回调地址（需在后台配置可信域名）
+        "snsapi_privateinfo",                      // 作用域：可进一步换取敏感信息
+        "login_from_h5");                          // 自定义 state，回调时原样带回
+
+// 第 2 步：在回调接口中用 code 换取成员标识
+WxOauth2UserVO user = wxOauth2Util.getUserInfo(code);
+String userId = user.getUserId();
+
+// 第 3 步（可选，仅 snsapi_privateinfo）：用 user_ticket 换取成员敏感详情
+if (user.getUserTicket() != null) {
+    WxOauth2UserDetailVO detail = wxOauth2Util.getUserDetail(user.getUserTicket());
+    String mobile = detail.getMobile();
+}
+```
+
+方法与参数：
+
+- `buildAuthorizationUrl(String redirectUri, String scope, String state)` —— 构造网页授权链接（纯拼接，不发请求）。
+  - `redirectUri`：授权后回调地址，需在企业微信后台配置为可信域名。
+  - `scope`：授权作用域。`snsapi_base`（静默授权，仅返回 userId）/ `snsapi_privateinfo`（手动授权，可返回 user_ticket 以获取敏感信息）。
+  - `state`：重定向后原样带回的自定义状态参数，用于防 CSRF 或业务透传。
+  - 返回：授权链接字符串，引导用户浏览器跳转。
+- `getUserInfo(String code)` —— 用回调 `code` 换取成员标识。
+  - `code`：网页授权回调地址上携带的一次性临时票据。
+  - 返回 `WxOauth2UserVO`：`userId`（成员 UserId）、`openId`（非企业成员标识）、`userTicket`（成员票据，`snsapi_privateinfo` 时返回，用于下一步）、`deviceId`（设备号）、`externalUserId`（外部联系人 ID）、`expiresIn`（成员票据有效期，秒）。
+- `getUserDetail(String userTicket)` —— 用成员票据换取敏感详情。
+  - `userTicket`：`getUserInfo` 返回的成员票据。
+  - 返回 `WxOauth2UserDetailVO`：`userId`、`name`（姓名）、`mobile`（手机号）、`gender`（性别，0/1/2）、`email`（邮箱）、`avatar`（头像 URL）、`qrCode`（个人二维码）、`address`（地址）、`bizMail`（企业邮箱）。
+
+### 智能机器人
+
+`WxIntelligentRobotUtil` 注入主 `WxCpService`，封装企业微信**智能机器人**的增删改查与对话能力。写操作直接使用 WxJava 请求对象入参，读操作转为本地 VO；受检异常转为 `QywxApiException`。
+
+```java
+// 创建机器人 → 返回 robotId
+WxCpIntelligentRobotCreateRequest create = new WxCpIntelligentRobotCreateRequest();
+create.setName("运维助手");
+create.setDescription("处理告警与值班问询");
+String robotId = wxIntelligentRobotUtil.createRobot(create);
+
+// 查询详情
+WxRobotVO robot = wxIntelligentRobotUtil.getRobot(robotId);
+
+// 对话（同一 sessionId 在多轮之间传递以延续上下文）
+WxCpIntelligentRobotChatRequest chat = new WxCpIntelligentRobotChatRequest();
+chat.setRobotId(robotId);
+chat.setUserid("zhangsan");
+chat.setMessage("今天谁值班？");
+WxRobotChatVO reply = wxIntelligentRobotUtil.chat(chat);
+String answer = reply.getReply();
+
+// 更新
+WxCpIntelligentRobotUpdateRequest update = new WxCpIntelligentRobotUpdateRequest();
+update.setRobotId(robotId);
+update.setName("智能运维助手");
+wxIntelligentRobotUtil.updateRobot(update);
+
+// 重置会话 / 删除
+wxIntelligentRobotUtil.resetSession(robotId, "single", reply.getSessionId());
+wxIntelligentRobotUtil.deleteRobot(robotId);
+```
+
+方法与参数：
+
+- `createRobot(WxCpIntelligentRobotCreateRequest req)` —— 创建智能机器人，返回新建机器人的 `robotId`。
+  - `req.name`：机器人名称。
+  - `req.description`：机器人描述。
+  - `req.avatar`：机器人头像（素材 mediaId）。
+- `updateRobot(WxCpIntelligentRobotUpdateRequest req)` —— 更新智能机器人。
+  - `req.robotId`：目标机器人 ID（必填）。
+  - `req.name` / `req.description` / `req.avatar`：要更新的名称 / 描述 / 头像。
+  - `req.status`：机器人状态。
+- `deleteRobot(String robotId)` —— 删除智能机器人。
+  - `robotId`：机器人 ID。
+- `getRobot(String robotId)` —— 获取智能机器人详情。
+  - `robotId`：机器人 ID。
+  - 返回 `WxRobotVO`：`robotId`、`name`（名称）、`description`（描述）、`avatar`（头像）、`status`（状态）、`createTime` / `updateTime`（创建 / 更新时间戳）。
+- `chat(WxCpIntelligentRobotChatRequest req)` —— 与智能机器人对话。
+  - `req.robotId`：机器人 ID。
+  - `req.userid`：发起对话的成员 userId。
+  - `req.message`：发送给机器人的消息内容。
+  - `req.sessionId`：会话 ID，用于延续多轮上下文；首轮可留空，后续传入上一轮返回的 sessionId。
+  - 返回 `WxRobotChatVO`：`reply`（机器人回复内容）、`sessionId`（会话 ID，下一轮带上）、`msgId`（消息 ID）。
+- `sendMessage(WxCpIntelligentRobotSendMessageRequest req)` —— 通过智能机器人发送消息。
+  - `req.robotId` / `req.userid` / `req.message` / `req.sessionId`：含义同上。
+  - `req.msgId`：消息 ID。
+  - 返回 `WxRobotSendResultVO`：`msgId`、`sessionId`。
+- `resetSession(String robotId, String chatType, String chatId)` —— 重置机器人会话。
+  - `robotId`：机器人 ID。
+  - `chatType`：会话类型。
+  - `chatId`：会话 ID。
+
+### 异步批量导出
+
+`WxExportUtil` 注入主 `WxCpService`，封装企业微信**异步批量导出**（成员简易信息 / 成员详细信息 / 部门 / 标签成员）。提供「提交 → 拿 jobId → 查结果」的分步 API，以及一站式「提交并轮询至完成 / 超时」的 `exportAndWait`。**边界止于拿到加密文件下载链接（url / size / md5），不负责下载与解密**。轮询参数由 `wx.cp.export.*` 配置（见上文「配置」一节）。
+
+```java
+WxCpExportRequest req = new WxCpExportRequest();
+req.setEncodingAesKey("<43 位 EncodingAESKey>"); // 必填，企业微信用它加密导出文件
+// req.setTagId(100);    // 导出标签成员时设置标签 id
+// req.setBlockSize(...) // 可选，每块数据条数
+
+// 方式一：一站式（推荐）——提交并轮询到完成；status=3（异常）或超时抛 QywxApiException
+WxExportResultVO result = wxExportUtil.exportAndWait(WxExportType.USER, req);
+for (WxExportDataVO data : result.getDataList()) {
+    String url = data.getUrl();   // 加密文件下载链接（下载与解密由调用方自行处理）
+    Integer size = data.getSize();
+    String md5 = data.getMd5();
+}
+
+// 方式二：分步——自行掌控轮询节奏
+String jobId = wxExportUtil.exportDepartment(req);
+WxExportResultVO r = wxExportUtil.getResult(jobId);
+if (r.getStatus() != null && r.getStatus() == 2) {   // 2 = 完成
+    // 处理 r.getDataList()
+}
+```
+
+方法与参数：
+
+- `exportSimpleUser(WxCpExportRequest req)` —— 提交「导出成员（简易信息）」任务，返回 `jobId`。
+- `exportUser(WxCpExportRequest req)` —— 提交「导出成员（详细信息）」任务，返回 `jobId`。
+- `exportDepartment(WxCpExportRequest req)` —— 提交「导出部门」任务，返回 `jobId`。
+- `exportTagUser(WxCpExportRequest req)` —— 提交「导出标签成员」任务，返回 `jobId`。
+  - 以上 `req` 字段：`encodingAesKey`（必填，43 位，企业微信用于加密导出文件）、`blockSize`（可选，每块数据条数）、`tagId`（导出标签成员时的标签 id）。
+- `getResult(String jobId)` —— 按 `jobId` 查询导出结果。
+  - `jobId`：提交任务返回的任务号。
+  - 返回 `WxExportResultVO`：`status`（1=处理中，2=完成，3=异常）、`dataList`（`List<WxExportDataVO>`，每项含 `url` 加密文件下载链接、`size` 文件字节大小、`md5` 文件摘要）。
+- `exportAndWait(WxExportType type, WxCpExportRequest req)` —— 一站式提交并轮询至完成返回；`status=3` 立即抛 `QywxApiException`，超过 `maxPollAttempts` 次或 `pollTimeoutMillis` 总时长仍未完成则抛超时异常。
+  - `type`：导出任务类型枚举 `WxExportType`（`SIMPLE_USER` / `USER` / `DEPARTMENT` / `TAG_USER`）。
+  - `req`：同上。
+
 ## 可靠性策略
 
 审批、HR 花名册、考勤工具内置：

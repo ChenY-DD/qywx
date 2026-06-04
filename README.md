@@ -339,6 +339,185 @@ Available exception helpers:
 - `getLocationExceptions`
 - `getDeviceExceptions`
 
+### Message Push
+
+`WxMessagePushUtil` injects the primary `WxCpService` and wraps WeCom **application message** sending and recall. All WeCom checked exceptions are converted to the unchecked `QywxApiException` (carrying `errCode` / `errMsg`).
+
+```java
+// 1) Text / Markdown / TextCard helpers (recipients are member userIds, '|'-separated, '@all' for everyone)
+WxMessageSendResultVO r = wxMessagePushUtil.sendText("zhangsan|lisi", "Build finished ✅");
+wxMessagePushUtil.sendMarkdown("zhangsan", "**Release succeeded**\n> v2.0.8 is live");
+wxMessagePushUtil.sendTextCard("zhangsan",
+        "Server alert", "CPU stuck at 95%, please act",
+        "https://ops.example.com/alert/1", "Details");
+
+// 2) Other message types (image/voice/video/news/file/card...): build a WxCpMessage, then send()
+WxCpMessage file = WxCpMessage.FILE().toUser("zhangsan").mediaId("MEDIA_ID").build();
+wxMessagePushUtil.send(file);
+
+// 3) Recall (msgId comes from the send result)
+wxMessagePushUtil.recall(r.getMsgId());
+```
+
+Methods and parameters:
+
+- `send(WxCpMessage message)` —— Send any type of application message.
+  - `message`: the WeCom message, built with `WxCpMessage.TEXT()/MARKDOWN()/TEXTCARD()/IMAGE()/VOICE()/VIDEO()/NEWS()/MPNEWS()/FILE()/TASKCARD()/TEMPLATECARD()`; recipients are set on the builder via `toUser` (member userIds, '|'-separated, '@all' for everyone) / `toParty` (department ids) / `toTag` (tag ids); when `agentId` is not set, the configured app is used.
+  - Returns `WxMessageSendResultVO`: `msgId` (message id, used for recall), `responseCode` (recall token), `invalidUser` / `invalidParty` / `invalidTag` (invalid members / departments / tags, '|'-separated), `unlicensedUser` (members without an active interface license).
+- `sendText(String toUser, String content)` —— Send a text message.
+  - `toUser`: recipient member userIds, '|'-separated, '@all' for everyone.
+  - `content`: text content.
+- `sendMarkdown(String toUser, String content)` —— Send a Markdown message.
+  - `toUser`: as above.
+  - `content`: Markdown content.
+- `sendTextCard(String toUser, String title, String description, String url, String btnTxt)` —— Send a text card message.
+  - `toUser`: as above.
+  - `title`: card title.
+  - `description`: card description.
+  - `url`: link opened when the card is clicked.
+  - `btnTxt`: button text (e.g. "Details").
+- `recall(String msgId)` —— Recall a previously sent application message.
+  - `msgId`: the message id from the send result.
+
+### OAuth2 Web Login
+
+`WxOauth2Util` injects the primary `WxCpService` and wraps WeCom **OAuth2 web login**: build the authorization URL → exchange `code` for the member identity → exchange `user_ticket` for sensitive member details. `buildAuthorizationUrl` is pure string concatenation (no network call); the other two convert checked exceptions to `QywxApiException`.
+
+```java
+// Step 1: build the authorization URL and redirect the user's browser
+String authUrl = wxOauth2Util.buildAuthorizationUrl(
+        "https://app.example.com/wecom/callback", // redirect URI (must be a trusted domain in the console)
+        "snsapi_privateinfo",                      // scope: allows fetching sensitive info later
+        "login_from_h5");                          // custom state, returned as-is in the callback
+
+// Step 2: in the callback endpoint, exchange code for the member identity
+WxOauth2UserVO user = wxOauth2Util.getUserInfo(code);
+String userId = user.getUserId();
+
+// Step 3 (optional, snsapi_privateinfo only): exchange user_ticket for sensitive details
+if (user.getUserTicket() != null) {
+    WxOauth2UserDetailVO detail = wxOauth2Util.getUserDetail(user.getUserTicket());
+    String mobile = detail.getMobile();
+}
+```
+
+Methods and parameters:
+
+- `buildAuthorizationUrl(String redirectUri, String scope, String state)` —— Build the web authorization URL (pure concatenation, no request).
+  - `redirectUri`: post-authorization callback URL; must be configured as a trusted domain in the WeCom console.
+  - `scope`: authorization scope. `snsapi_base` (silent, returns userId only) / `snsapi_privateinfo` (manual, returns a user_ticket for fetching sensitive info).
+  - `state`: custom state returned as-is after redirect; use it for CSRF protection or business pass-through.
+  - Returns: the authorization URL string to redirect the user's browser to.
+- `getUserInfo(String code)` —— Exchange the callback `code` for the member identity.
+  - `code`: the one-time temporary ticket carried on the callback URL.
+  - Returns `WxOauth2UserVO`: `userId` (member UserId), `openId` (identity for non-members), `userTicket` (member ticket, returned with `snsapi_privateinfo`, used in the next step), `deviceId`, `externalUserId` (external contact id), `expiresIn` (member ticket TTL in seconds).
+- `getUserDetail(String userTicket)` —— Exchange the member ticket for sensitive details.
+  - `userTicket`: the member ticket returned by `getUserInfo`.
+  - Returns `WxOauth2UserDetailVO`: `userId`, `name`, `mobile`, `gender` (0/1/2), `email`, `avatar` (URL), `qrCode` (personal QR code), `address`, `bizMail` (corporate mailbox).
+
+### Intelligent Robot
+
+`WxIntelligentRobotUtil` injects the primary `WxCpService` and wraps WeCom **intelligent robot** CRUD plus conversation. Write operations take WxJava request objects directly; read operations are converted to local VOs; checked exceptions become `QywxApiException`.
+
+```java
+// Create a robot → returns robotId
+WxCpIntelligentRobotCreateRequest create = new WxCpIntelligentRobotCreateRequest();
+create.setName("Ops Assistant");
+create.setDescription("Handles alerts and on-call questions");
+String robotId = wxIntelligentRobotUtil.createRobot(create);
+
+// Get details
+WxRobotVO robot = wxIntelligentRobotUtil.getRobot(robotId);
+
+// Chat (carry the same sessionId across turns to keep context)
+WxCpIntelligentRobotChatRequest chat = new WxCpIntelligentRobotChatRequest();
+chat.setRobotId(robotId);
+chat.setUserid("zhangsan");
+chat.setMessage("Who is on call today?");
+WxRobotChatVO reply = wxIntelligentRobotUtil.chat(chat);
+String answer = reply.getReply();
+
+// Update
+WxCpIntelligentRobotUpdateRequest update = new WxCpIntelligentRobotUpdateRequest();
+update.setRobotId(robotId);
+update.setName("Smart Ops Assistant");
+wxIntelligentRobotUtil.updateRobot(update);
+
+// Reset session / delete
+wxIntelligentRobotUtil.resetSession(robotId, "single", reply.getSessionId());
+wxIntelligentRobotUtil.deleteRobot(robotId);
+```
+
+Methods and parameters:
+
+- `createRobot(WxCpIntelligentRobotCreateRequest req)` —— Create a robot; returns the new `robotId`.
+  - `req.name`: robot name.
+  - `req.description`: robot description.
+  - `req.avatar`: robot avatar (media id).
+- `updateRobot(WxCpIntelligentRobotUpdateRequest req)` —— Update a robot.
+  - `req.robotId`: target robot id (required).
+  - `req.name` / `req.description` / `req.avatar`: fields to update.
+  - `req.status`: robot status.
+- `deleteRobot(String robotId)` —— Delete a robot.
+  - `robotId`: robot id.
+- `getRobot(String robotId)` —— Get robot details.
+  - `robotId`: robot id.
+  - Returns `WxRobotVO`: `robotId`, `name`, `description`, `avatar`, `status`, `createTime` / `updateTime` (timestamps).
+- `chat(WxCpIntelligentRobotChatRequest req)` —— Chat with the robot.
+  - `req.robotId`: robot id.
+  - `req.userid`: userId of the member starting the chat.
+  - `req.message`: message sent to the robot.
+  - `req.sessionId`: session id for multi-turn context; leave empty on the first turn, then pass the sessionId returned previously.
+  - Returns `WxRobotChatVO`: `reply` (robot reply), `sessionId` (carry into the next turn), `msgId`.
+- `sendMessage(WxCpIntelligentRobotSendMessageRequest req)` —— Send a message through the robot.
+  - `req.robotId` / `req.userid` / `req.message` / `req.sessionId`: as above.
+  - `req.msgId`: message id.
+  - Returns `WxRobotSendResultVO`: `msgId`, `sessionId`.
+- `resetSession(String robotId, String chatType, String chatId)` —— Reset a robot session.
+  - `robotId`: robot id.
+  - `chatType`: chat type.
+  - `chatId`: chat id.
+
+### Async Export
+
+`WxExportUtil` injects the primary `WxCpService` and wraps WeCom **async bulk export** (simple user / detailed user / department / tag members). It offers a stepwise API (submit → get jobId → poll result) and the one-shot `exportAndWait` (submit and poll until finished / timeout). **It stops at the encrypted download link (url / size / md5) and does not download or decrypt.** Polling is configured via `wx.cp.export.*` (see Configuration above).
+
+```java
+WxCpExportRequest req = new WxCpExportRequest();
+req.setEncodingAesKey("<43-char EncodingAESKey>"); // required; WeCom uses it to encrypt the export file
+// req.setTagId(100);    // set when exporting tag members
+// req.setBlockSize(...) // optional, records per block
+
+// Option A: one-shot (recommended) — submit and poll until finished; status=3 (failed) or timeout throws QywxApiException
+WxExportResultVO result = wxExportUtil.exportAndWait(WxExportType.USER, req);
+for (WxExportDataVO data : result.getDataList()) {
+    String url = data.getUrl();   // encrypted download link (download & decryption are up to you)
+    Integer size = data.getSize();
+    String md5 = data.getMd5();
+}
+
+// Option B: stepwise — control the polling cadence yourself
+String jobId = wxExportUtil.exportDepartment(req);
+WxExportResultVO r = wxExportUtil.getResult(jobId);
+if (r.getStatus() != null && r.getStatus() == 2) {   // 2 = finished
+    // handle r.getDataList()
+}
+```
+
+Methods and parameters:
+
+- `exportSimpleUser(WxCpExportRequest req)` —— Submit a "simple user" export; returns `jobId`.
+- `exportUser(WxCpExportRequest req)` —— Submit a "detailed user" export; returns `jobId`.
+- `exportDepartment(WxCpExportRequest req)` —— Submit a "department" export; returns `jobId`.
+- `exportTagUser(WxCpExportRequest req)` —— Submit a "tag members" export; returns `jobId`.
+  - `req` fields: `encodingAesKey` (required, 43 chars, used by WeCom to encrypt the file), `blockSize` (optional, records per block), `tagId` (tag id when exporting tag members).
+- `getResult(String jobId)` —— Query an export result by `jobId`.
+  - `jobId`: the job number returned on submit.
+  - Returns `WxExportResultVO`: `status` (1=processing, 2=finished, 3=failed), `dataList` (`List<WxExportDataVO>`, each with `url` encrypted download link, `size` bytes, `md5`).
+- `exportAndWait(WxExportType type, WxCpExportRequest req)` —— Submit and poll until finished; throws `QywxApiException` immediately on `status=3`, or a timeout exception after `maxPollAttempts` polls or `pollTimeoutMillis` total.
+  - `type`: export type enum `WxExportType` (`SIMPLE_USER` / `USER` / `DEPARTMENT` / `TAG_USER`).
+  - `req`: as above.
+
 ## Reliability
 
 Approval, HR roster, and attendance utilities include:
