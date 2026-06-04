@@ -2,7 +2,7 @@
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
-企业微信通讯录、审批、花名册、考勤查询 Spring Boot Starter。
+企业微信通讯录、审批、花名册、考勤、消息推送、网页授权、智能机器人、批量导出 Spring Boot Starter。
 
 本项目基于 `weixin-java-cp` 做二次封装，提供更贴近业务的工具类，让业务代码不用在每个服务里重复拼装底层 SDK 调用。
 
@@ -84,6 +84,7 @@ wx.cp.export.max-poll-attempts=30
 - `wx.cp.corp-secret` 是主应用 secret，用于通讯录、审批、考勤和通用 API 调用。
 - `wx.cp.hr.secret` 必须是智慧人事 / 人事助手应用的专属 secret，通讯录或自建应用 secret 不能访问 HR 花名册接口。
 - `requests-per-second=0` 表示该模块不启用内置限流。
+- 异步导出 `exportAndWait` 会持续轮询直到任务完成；超过 `max-poll-attempts` 次或 `poll-timeout-millis` 超时（以先到者为准）仍未完成则抛 `QywxApiException`，任务返回失败状态（status=3）时立即失败。
 
 ## 自动装配的 Bean
 

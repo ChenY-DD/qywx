@@ -2,7 +2,7 @@
 
 [English](./README.md) | [中文](./README.zh-CN.md)
 
-Spring Boot Starter for WeCom (WeChat Work) contact, approval, HR roster, and attendance queries.
+Spring Boot Starter for WeCom (WeChat Work) contact, approval, HR roster, attendance, message push, OAuth2 login, intelligent robot, and bulk export operations.
 
 It wraps `weixin-java-cp` with business-oriented utilities, so application code can query common WeCom data without assembling low-level SDK calls in every service.
 
@@ -84,6 +84,7 @@ Notes:
 - `wx.cp.corp-secret` is the primary app secret used by contact, approval, attendance, and generic API calls.
 - `wx.cp.hr.secret` must be the dedicated HR app secret. The contact or self-built app secret cannot access HR roster APIs.
 - `requests-per-second=0` disables the built-in limiter for that module.
+- The async `exportAndWait` polls until the job finishes; it throws `QywxApiException` if the job is still unfinished after `max-poll-attempts` or `poll-timeout-millis` (whichever comes first), and fails fast when the job returns a failed status (status=3).
 
 ## Auto-Configured Beans
 
