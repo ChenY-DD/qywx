@@ -45,7 +45,7 @@ public final class WxDateRangeUtils {
     }
 
     /**
-     * 执行 last3Days 相关逻辑。
+     * 最近 3 天（默认对齐到自然日，等价于 {@link #lastDays(int)} 传入 3）。
      *
      * @return 日期范围
      *
@@ -57,20 +57,55 @@ public final class WxDateRangeUtils {
     }
 
     /**
-     * 执行 lastDays 相关逻辑。
+     * 最近 N 个自然日（含今天共 days 天；默认对齐到自然日：开始 00:00:00、结束当天 23:59:59.999）。
      *
-     * @param days 向前追溯的天数
+     * @param days 向前追溯的天数（必须大于 0）
      * @return 日期范围
      *
      * @author cy
      * Copyright (c) CY
      */
     public static WxDateRange lastDays(int days) {
+        return lastDays(days, true);
+    }
+
+    /**
+     * 最近 N 天。
+     *
+     * @param days            向前追溯的天数（必须大于 0）
+     * @param alignToWholeDay true：取最近 days 个完整自然日（开始 [今天-(days-1)] 00:00:00、结束今天 23:59:59.999）；
+     *                        false：精确到当前时分秒的滚动窗口 [now - days 天, now]
+     * @return 日期范围
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    public static WxDateRange lastDays(int days, boolean alignToWholeDay) {
         if (days <= 0) {
             throw new IllegalArgumentException("days must be greater than 0");
         }
         LocalDateTime now = LocalDateTime.now(DEFAULT_ZONE);
+        if (alignToWholeDay) {
+            return custom(now.minusDays(days - 1).toLocalDate(), now.toLocalDate());
+        }
         return custom(now.minusDays(days), now);
+    }
+
+    /**
+     * 最近 N 个自然日，但不含今天（截止到昨天：开始 [今天-days] 00:00:00、结束昨天 23:59:59.999，共 days 天）。
+     *
+     * @param days 向前追溯的天数（必须大于 0）
+     * @return 日期范围
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    public static WxDateRange lastDaysBeforeToday(int days) {
+        if (days <= 0) {
+            throw new IllegalArgumentException("days must be greater than 0");
+        }
+        LocalDateTime now = LocalDateTime.now(DEFAULT_ZONE);
+        return custom(now.minusDays(days).toLocalDate(), now.minusDays(1).toLocalDate());
     }
 
     /**

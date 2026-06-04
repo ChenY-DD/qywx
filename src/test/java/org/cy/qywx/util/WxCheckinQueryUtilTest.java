@@ -2,6 +2,8 @@ package org.cy.qywx.util;
 
 import me.chanjar.weixin.cp.api.WxCpOaService;
 import me.chanjar.weixin.cp.api.WxCpService;
+import me.chanjar.weixin.cp.api.WxCpUserService;
+import me.chanjar.weixin.cp.bean.WxCpUser;
 import me.chanjar.weixin.cp.bean.oa.WxCpCheckinData;
 import me.chanjar.weixin.cp.bean.oa.WxCpCheckinDayData;
 import me.chanjar.weixin.cp.bean.oa.WxCpCheckinMonthData;
@@ -14,6 +16,7 @@ import org.cy.qywx.vo.WxCheckinScheduleListItemVO;
 import org.cy.qywx.vo.enums.WxCheckinExceptionTypeEnum;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 import java.util.ArrayList;
@@ -24,6 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -169,6 +173,47 @@ class WxCheckinQueryUtilTest {
                 WxCheckinQueryUtil.CHECKIN_TYPE_OUTSIDE, start, end, List.of("u1"));
 
         assertThat(result.records()).hasSize(1);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void getAllCheckinRecords_fetchesAllMembersThenQueries() throws Exception {
+        WxCpUserService userService = Mockito.mock(WxCpUserService.class);
+        when(cpService.getUserService()).thenReturn(userService);
+        WxCpUser u1 = new WxCpUser();
+        u1.setUserId("u1");
+        WxCpUser u2 = new WxCpUser();
+        u2.setUserId("u2");
+        when(userService.listSimpleByDepartment(eq(1L), eq(true), eq(0))).thenReturn(List.of(u1, u2));
+
+        WxCpCheckinData d = new WxCpCheckinData();
+        d.setUserId("u1");
+        d.setCheckinTime(1714521600L);
+        when(oaService.getCheckinData(eq(3), any(), any(), anyList())).thenReturn(List.of(d));
+
+        Date start = new Date(1714521600000L);
+        Date end = new Date(start.getTime() + 86_400_000L);
+
+        WxCheckinRecordResult result = util.getAllCheckinRecords(new WxDateRange(start, end));
+
+        assertThat(result.records()).hasSize(1);
+        ArgumentCaptor<List<String>> captor = ArgumentCaptor.forClass(List.class);
+        Mockito.verify(oaService).getCheckinData(eq(3), any(), any(), captor.capture());
+        assertThat(captor.getValue()).containsExactlyInAnyOrder("u1", "u2");
+    }
+
+    @Test
+    void getAllCheckinRecords_noMembersReturnsEmptyWithoutQuery() throws Exception {
+        WxCpUserService userService = Mockito.mock(WxCpUserService.class);
+        when(cpService.getUserService()).thenReturn(userService);
+        when(userService.listSimpleByDepartment(eq(1L), eq(true), eq(0))).thenReturn(List.of());
+
+        WxCheckinRecordResult result = util.getAllCheckinRecords(
+                new WxDateRange(new Date(1714521600000L), new Date(1714608000000L)));
+
+        assertThat(result.records()).isEmpty();
+        assertThat(result.failures()).isEmpty();
+        Mockito.verify(oaService, Mockito.never()).getCheckinData(anyInt(), any(), any(), anyList());
     }
 
     @Test

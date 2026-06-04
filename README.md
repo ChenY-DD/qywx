@@ -32,7 +32,7 @@ It wraps `weixin-java-cp` with business-oriented utilities, so application code 
 <dependency>
     <groupId>org.cy</groupId>
     <artifactId>qywx-wecom-spring-boot-starter</artifactId>
-    <version>2.0.9</version>
+    <version>2.0.11</version>
 </dependency>
 ```
 
@@ -271,7 +271,18 @@ Approvals are queried by **submit time** (`applyTime`), not by open/closed state
 
 ```java
 WxDateRange today = WxDateRangeUtils.today();
+
+// lastDays(n) aligns to whole calendar days — n full days INCLUDING today.
+// On 2026-06-04, lastDays(7) → 2026-05-29 00:00:00 .. 2026-06-04 23:59:59.999
 WxDateRange last7Days = WxDateRangeUtils.lastDays(7);
+
+// Rolling window keeping the exact clock time on both ends: [now - 7 days, now]
+WxDateRange rolling = WxDateRangeUtils.lastDays(7, false);
+
+// n full days EXCLUDING today, up to yesterday.
+// On 2026-06-04, lastDaysBeforeToday(7) → 2026-05-28 00:00:00 .. 2026-06-03 23:59:59.999
+WxDateRange last7DaysBeforeToday = WxDateRangeUtils.lastDaysBeforeToday(7);
+
 WxDateRange month = WxDateRangeUtils.currentMonth();
 WxDateRange custom = WxDateRangeUtils.custom(
         LocalDate.of(2026, 1, 1),
@@ -322,6 +333,8 @@ List<String> userIds = List.of("zhangsan", "lisi");
 
 List<WxCheckinGroupVO> groups = wxCheckinQueryUtil.getCheckinGroups();
 WxCheckinRecordResult records = wxCheckinQueryUtil.getCheckinRecords(range, userIds);
+// All members — pass only a date range; userIds are fetched automatically (throws WxErrorException).
+WxCheckinRecordResult allRecords = wxCheckinQueryUtil.getAllCheckinRecords(range);
 WxCheckinDayDataResult dayData = wxCheckinQueryUtil.getCheckinDayData(range, userIds);
 WxCheckinMonthDataResult monthData = wxCheckinQueryUtil.getCheckinMonthData(range, userIds);
 List<WxCheckinScheduleListItemVO> schedules = wxCheckinQueryUtil.getScheduleList(range, userIds);
@@ -346,7 +359,7 @@ Available exception helpers:
 ```java
 // 1) Text / Markdown / TextCard helpers (recipients are member userIds, '|'-separated, '@all' for everyone)
 WxMessageSendResultVO r = wxMessagePushUtil.sendText("zhangsan|lisi", "Build finished ✅");
-wxMessagePushUtil.sendMarkdown("zhangsan", "**Release succeeded**\n> v2.0.9 is live");
+wxMessagePushUtil.sendMarkdown("zhangsan", "**Release succeeded**\n> v2.0.11 is live");
 wxMessagePushUtil.sendTextCard("zhangsan",
         "Server alert", "CPU stuck at 95%, please act",
         "https://ops.example.com/alert/1", "Details");
@@ -594,6 +607,8 @@ The starter logs key operations with SLF4J:
 - `today()`
 - `last3Days()`
 - `lastDays(int days)`
+- `lastDays(int days, boolean alignToWholeDay)`
+- `lastDaysBeforeToday(int days)`
 - `currentMonth()`
 - `currentYear()`
 - `custom(Date startTime, Date endTime)`
@@ -611,6 +626,7 @@ The starter logs key operations with SLF4J:
 
 - `getCheckinGroups()`
 - `getCheckinRecords(...)`
+- `getAllCheckinRecords(WxDateRange range)`
 - `getCheckinDayData(...)`
 - `getCheckinMonthData(...)`
 - `getScheduleList(...)`

@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Date;
 
@@ -50,5 +51,42 @@ class WxDateRangeUtilsTest {
         assertTrue(WxDateRangeUtils.last3Days().startTime().before(WxDateRangeUtils.last3Days().endTime()));
         assertTrue(WxDateRangeUtils.currentMonth().startTime().before(WxDateRangeUtils.currentMonth().endTime()));
         assertTrue(WxDateRangeUtils.currentYear().startTime().before(WxDateRangeUtils.currentYear().endTime()));
+    }
+
+    @Test
+    void lastDaysAlignsToWholeDayByDefault() {
+        WxDateRange range = WxDateRangeUtils.lastDays(7);
+        assertEquals(LocalTime.MIDNIGHT, toLocalDateTime(range.startTime()).toLocalTime());
+        assertEquals(LocalTime.of(23, 59, 59), toLocalDateTime(range.endTime()).toLocalTime().withNano(0));
+    }
+
+    @Test
+    void lastDaysCoversExactlyNCalendarDays() {
+        WxDateRange range = WxDateRangeUtils.lastDays(7);
+        LocalDate today = LocalDate.now(ZoneId.systemDefault());
+        assertEquals(today.minusDays(6), toLocalDateTime(range.startTime()).toLocalDate());
+        assertEquals(today, toLocalDateTime(range.endTime()).toLocalDate());
+    }
+
+    @Test
+    void lastDaysRollingKeepsClockTimeOnBothEnds() {
+        WxDateRange range = WxDateRangeUtils.lastDays(7, false);
+        LocalTime start = toLocalDateTime(range.startTime()).toLocalTime();
+        LocalTime end = toLocalDateTime(range.endTime()).toLocalTime();
+        assertEquals(start, end);
+    }
+
+    @Test
+    void lastDaysBeforeTodayExcludesTodayAndCoversNDays() {
+        WxDateRange range = WxDateRangeUtils.lastDaysBeforeToday(7);
+        LocalDate today = LocalDate.now(ZoneId.systemDefault());
+        assertEquals(today.minusDays(7), toLocalDateTime(range.startTime()).toLocalDate());
+        assertEquals(today.minusDays(1), toLocalDateTime(range.endTime()).toLocalDate());
+        assertEquals(LocalTime.MIDNIGHT, toLocalDateTime(range.startTime()).toLocalTime());
+        assertEquals(LocalTime.of(23, 59, 59), toLocalDateTime(range.endTime()).toLocalTime().withNano(0));
+    }
+
+    private static LocalDateTime toLocalDateTime(Date date) {
+        return LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
     }
 }

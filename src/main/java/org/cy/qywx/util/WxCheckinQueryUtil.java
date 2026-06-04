@@ -2,6 +2,7 @@ package org.cy.qywx.util;
 
 import me.chanjar.weixin.common.error.WxErrorException;
 import me.chanjar.weixin.cp.api.WxCpService;
+import me.chanjar.weixin.cp.bean.WxCpUser;
 import me.chanjar.weixin.cp.bean.oa.WxCpCheckinData;
 import me.chanjar.weixin.cp.bean.oa.WxCpCheckinDayData;
 import me.chanjar.weixin.cp.bean.oa.WxCpCheckinMonthData;
@@ -241,6 +242,35 @@ public class WxCheckinQueryUtil {
      */
     public WxCheckinRecordResult getCheckinRecords(int type, WxDateRange range, Collection<String> userIds) {
         return getCheckinRecords(type, range.startTime(), range.endTime(), userIds);
+    }
+
+    /**
+     * 获取全部成员的考勤打卡记录列表（仅传时间范围，内部自动拉取全部在职成员 userId）。
+     *
+     * @param range 范围
+     * @return 考勤打卡记录列表
+     * @throws WxErrorException 拉取全部成员 userId 失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    public WxCheckinRecordResult getAllCheckinRecords(WxDateRange range) throws WxErrorException {
+        return getAllCheckinRecords(CHECKIN_TYPE_ALL, range);
+    }
+
+    /**
+     * 获取全部成员的考勤打卡记录列表（传类型与时间范围，内部自动拉取全部在职成员 userId）。
+     *
+     * @param type 类型
+     * @param range 范围
+     * @return 考勤打卡记录列表
+     * @throws WxErrorException 拉取全部成员 userId 失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    public WxCheckinRecordResult getAllCheckinRecords(int type, WxDateRange range) throws WxErrorException {
+        return getCheckinRecords(type, range.startTime(), range.endTime(), fetchAllUserIds());
     }
 
     // -------------------- getCheckinDayData --------------------
@@ -747,6 +777,26 @@ public class WxCheckinQueryUtil {
     }
 
     // -------------------- fan-out 引擎 --------------------
+
+    /**
+     * 拉取全部在职成员的 userId（根部门递归，状态取全部）。
+     *
+     * @return 全部成员 userId 列表
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private List<String> fetchAllUserIds() throws WxErrorException {
+        List<WxCpUser> users = wxCpService.getUserService().listSimpleByDepartment(1L, true, 0);
+        if (users == null || users.isEmpty()) {
+            return List.of();
+        }
+        return users.stream()
+                .map(WxCpUser::getUserId)
+                .filter(Objects::nonNull)
+                .toList();
+    }
 
     /**
      * 执行 normaliseUserIds 相关逻辑。

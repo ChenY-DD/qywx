@@ -32,7 +32,7 @@
 <dependency>
     <groupId>org.cy</groupId>
     <artifactId>qywx-wecom-spring-boot-starter</artifactId>
-    <version>2.0.9</version>
+    <version>2.0.11</version>
 </dependency>
 ```
 
@@ -271,7 +271,18 @@ if (block != null) {
 
 ```java
 WxDateRange today = WxDateRangeUtils.today();
+
+// lastDays(n) 对齐到自然日 —— 最近 n 个完整自然日（含今天）。
+// 以 2026-06-04 为例，lastDays(7) → 2026-05-29 00:00:00 .. 2026-06-04 23:59:59.999
 WxDateRange last7Days = WxDateRangeUtils.lastDays(7);
+
+// 滚动窗口，两端保留精确时分秒：[now - 7 天, now]
+WxDateRange rolling = WxDateRangeUtils.lastDays(7, false);
+
+// 最近 n 个完整自然日，但不含今天（截止昨天）。
+// 以 2026-06-04 为例，lastDaysBeforeToday(7) → 2026-05-28 00:00:00 .. 2026-06-03 23:59:59.999
+WxDateRange last7DaysBeforeToday = WxDateRangeUtils.lastDaysBeforeToday(7);
+
 WxDateRange month = WxDateRangeUtils.currentMonth();
 WxDateRange custom = WxDateRangeUtils.custom(
         LocalDate.of(2026, 1, 1),
@@ -322,6 +333,8 @@ List<String> userIds = List.of("zhangsan", "lisi");
 
 List<WxCheckinGroupVO> groups = wxCheckinQueryUtil.getCheckinGroups();
 WxCheckinRecordResult records = wxCheckinQueryUtil.getCheckinRecords(range, userIds);
+// 全部成员 —— 只需传时间范围，userId 自动拉取（抛 WxErrorException）。
+WxCheckinRecordResult allRecords = wxCheckinQueryUtil.getAllCheckinRecords(range);
 WxCheckinDayDataResult dayData = wxCheckinQueryUtil.getCheckinDayData(range, userIds);
 WxCheckinMonthDataResult monthData = wxCheckinQueryUtil.getCheckinMonthData(range, userIds);
 List<WxCheckinScheduleListItemVO> schedules = wxCheckinQueryUtil.getScheduleList(range, userIds);
@@ -346,7 +359,7 @@ WxAttendanceReportVO report = wxCheckinQueryUtil.getAttendanceReport(range, user
 ```java
 // 1) 文本 / Markdown / 文本卡片便捷方法（接收人为成员 userId，多个用 | 分隔，@all 发给全部）
 WxMessageSendResultVO r = wxMessagePushUtil.sendText("zhangsan|lisi", "构建完成 ✅");
-wxMessagePushUtil.sendMarkdown("zhangsan", "**发布成功**\n> 版本 v2.0.9 已上线");
+wxMessagePushUtil.sendMarkdown("zhangsan", "**发布成功**\n> 版本 v2.0.11 已上线");
 wxMessagePushUtil.sendTextCard("zhangsan",
         "服务器告警", "CPU 持续 95%，请尽快处理",
         "https://ops.example.com/alert/1", "查看详情");
@@ -594,6 +607,8 @@ starter 使用 SLF4J 记录关键操作：
 - `today()`
 - `last3Days()`
 - `lastDays(int days)`
+- `lastDays(int days, boolean alignToWholeDay)`
+- `lastDaysBeforeToday(int days)`
 - `currentMonth()`
 - `currentYear()`
 - `custom(Date startTime, Date endTime)`
@@ -611,6 +626,7 @@ starter 使用 SLF4J 记录关键操作：
 
 - `getCheckinGroups()`
 - `getCheckinRecords(...)`
+- `getAllCheckinRecords(WxDateRange range)`
 - `getCheckinDayData(...)`
 - `getCheckinMonthData(...)`
 - `getScheduleList(...)`
