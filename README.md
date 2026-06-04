@@ -32,7 +32,7 @@ It wraps `weixin-java-cp` with business-oriented utilities, so application code 
 <dependency>
     <groupId>org.cy</groupId>
     <artifactId>qywx-wecom-spring-boot-starter</artifactId>
-    <version>2.0.8</version>
+    <version>2.0.9</version>
 </dependency>
 ```
 
@@ -346,7 +346,7 @@ Available exception helpers:
 ```java
 // 1) Text / Markdown / TextCard helpers (recipients are member userIds, '|'-separated, '@all' for everyone)
 WxMessageSendResultVO r = wxMessagePushUtil.sendText("zhangsan|lisi", "Build finished ✅");
-wxMessagePushUtil.sendMarkdown("zhangsan", "**Release succeeded**\n> v2.0.8 is live");
+wxMessagePushUtil.sendMarkdown("zhangsan", "**Release succeeded**\n> v2.0.9 is live");
 wxMessagePushUtil.sendTextCard("zhangsan",
         "Server alert", "CPU stuck at 95%, please act",
         "https://ops.example.com/alert/1", "Details");

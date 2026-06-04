@@ -32,7 +32,7 @@
 <dependency>
     <groupId>org.cy</groupId>
     <artifactId>qywx-wecom-spring-boot-starter</artifactId>
-    <version>2.0.8</version>
+    <version>2.0.9</version>
 </dependency>
 ```
 
@@ -346,7 +346,7 @@ WxAttendanceReportVO report = wxCheckinQueryUtil.getAttendanceReport(range, user
 ```java
 // 1) 文本 / Markdown / 文本卡片便捷方法（接收人为成员 userId，多个用 | 分隔，@all 发给全部）
 WxMessageSendResultVO r = wxMessagePushUtil.sendText("zhangsan|lisi", "构建完成 ✅");
-wxMessagePushUtil.sendMarkdown("zhangsan", "**发布成功**\n> 版本 v2.0.8 已上线");
+wxMessagePushUtil.sendMarkdown("zhangsan", "**发布成功**\n> 版本 v2.0.9 已上线");
 wxMessagePushUtil.sendTextCard("zhangsan",
         "服务器告警", "CPU 持续 95%，请尽快处理",
         "https://ops.example.com/alert/1", "查看详情");
