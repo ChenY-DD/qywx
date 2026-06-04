@@ -100,4 +100,30 @@ class QywxWecomAutoConfigurationTest {
             assertThat(context).hasSingleBean(WxExportUtil.class);
         });
     }
+
+    @Test
+    void newModuleBeansAbsentWhenCpServiceMissing() {
+        contextRunnerWithoutCpService.run(context -> {
+            assertThat(context).doesNotHaveBean(WxMessagePushUtil.class);
+            assertThat(context).doesNotHaveBean(WxOauth2Util.class);
+            assertThat(context).doesNotHaveBean(WxIntelligentRobotUtil.class);
+            assertThat(context).doesNotHaveBean(WxExportUtil.class);
+        });
+    }
+
+    @Test
+    void exportPropertiesPropagated() {
+        contextRunner
+                .withPropertyValues(
+                        "wx.cp.export.poll-interval-millis=500",
+                        "wx.cp.export.poll-timeout-millis=10000",
+                        "wx.cp.export.max-poll-attempts=10"
+                )
+                .run(context -> {
+                    WxCpProperties props = context.getBean(WxCpProperties.class);
+                    assertThat(props.getExport().getPollIntervalMillis()).isEqualTo(500L);
+                    assertThat(props.getExport().getPollTimeoutMillis()).isEqualTo(10000L);
+                    assertThat(props.getExport().getMaxPollAttempts()).isEqualTo(10);
+                });
+    }
 }
