@@ -8,6 +8,7 @@ import org.cy.qywx.exception.QywxApiException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.security.SecureRandom;
 import java.util.concurrent.locks.LockSupport;
 
 /**
@@ -27,6 +28,16 @@ public class WxExportUtil {
 
     /** WeCom 导出任务异常状态：3=异常（失败终态）。 */
     private static final int STATUS_FAILED = 3;
+
+    /** EncodingAESKey 字符集（a-z / A-Z / 0-9，共 62 个）。 */
+    private static final String AES_KEY_CHARSET =
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+    /** EncodingAESKey 长度（企业微信固定要求 43 位）。 */
+    private static final int ENCODING_AES_KEY_LENGTH = 43;
+
+    /** 生成 EncodingAESKey 用的安全随机源（线程安全，可复用）。 */
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     /** 企业微信服务（联系人/导出 scope） */
     private final WxCpService wxCpService;
@@ -48,6 +59,25 @@ public class WxExportUtil {
         this.options = options;
         log.info("WxExportUtil initialized: pollIntervalMillis={}, pollTimeoutMillis={}, maxPollAttempts={}",
                 options.pollIntervalMillis(), options.pollTimeoutMillis(), options.maxPollAttempts());
+    }
+
+    /**
+     * 生成一个企业微信异步导出用的 43 位 EncodingAESKey。
+     * <p>由调用方生成并妥善保存：企业微信用它加密导出文件，下载后需用同一把 key 解密，
+     * 因此请生成一次后固定保存复用。字符取自 a-z / A-Z / 0-9；
+     * {@code Base64.getDecoder().decode(key + "=")} 还原为 32 字节 AES-256 密钥。
+     *
+     * @return 43 位 EncodingAESKey
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    public static String generateEncodingAesKey() {
+        StringBuilder sb = new StringBuilder(ENCODING_AES_KEY_LENGTH);
+        for (int i = 0; i < ENCODING_AES_KEY_LENGTH; i++) {
+            sb.append(AES_KEY_CHARSET.charAt(SECURE_RANDOM.nextInt(AES_KEY_CHARSET.length())));
+        }
+        return sb.toString();
     }
 
     /**

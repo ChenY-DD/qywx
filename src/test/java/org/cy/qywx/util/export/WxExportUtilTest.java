@@ -81,4 +81,17 @@ class WxExportUtilTest {
         WxExportUtil util = newUtil(WxExportQueryOptions.defaults());
         assertThatThrownBy(() -> util.getResult("bad")).isInstanceOf(QywxApiException.class);
     }
+
+    @Test
+    void generateEncodingAesKeyHas43ValidChars() {
+        String key = WxExportUtil.generateEncodingAesKey();
+        assertThat(key).hasSize(43);
+        assertThat(key).matches("[A-Za-z0-9]{43}");
+    }
+
+    @Test
+    void generateEncodingAesKeyIsRandom() {
+        assertThat(WxExportUtil.generateEncodingAesKey())
+                .isNotEqualTo(WxExportUtil.generateEncodingAesKey());
+    }
 }

@@ -483,8 +483,10 @@ wxIntelligentRobotUtil.deleteRobot(robotId);
 `WxExportUtil` 注入主 `WxCpService`，封装企业微信**异步批量导出**（成员简易信息 / 成员详细信息 / 部门 / 标签成员）。提供「提交 → 拿 jobId → 查结果」的分步 API，以及一站式「提交并轮询至完成 / 超时」的 `exportAndWait`。**边界止于拿到加密文件下载链接（url / size / md5），不负责下载与解密**。轮询参数由 `wx.cp.export.*` 配置（见上文「配置」一节）。
 
 ```java
+// EncodingAESKey 由你生成一次并固定保存（解密时复用同一把）；starter 提供生成方法
+String encodingAesKey = WxExportUtil.generateEncodingAesKey();
 WxCpExportRequest req = new WxCpExportRequest();
-req.setEncodingAesKey("<43 位 EncodingAESKey>"); // 必填，企业微信用它加密导出文件
+req.setEncodingAesKey(encodingAesKey); // 必填，企业微信用它加密导出文件
 // req.setTagId(100);    // 导出标签成员时设置标签 id
 // req.setBlockSize(...) // 可选，每块数据条数
 
@@ -521,14 +523,8 @@ if (r.getStatus() != null && r.getStatus() == 2) {   // 2 = 完成
 **`encodingAesKey` 怎么来**：它由**调用方自己生成并保存**，不是企业微信下发或后台「领取」的。规格：固定 **43 位**，字符取自 `a-z` / `A-Z` / `0-9`（共 62 个字符）——本质是一段 AES 密钥的 Base64 编码，`Base64.getDecoder().decode(encodingAesKey + "=")` 还原为 32 字节（AES-256）密钥。企业微信用它加密导出文件、返回加密文件的下载链接，你下载后用**同一把** key 解密。生成一次后固定保存复用即可；也可直接复用企业微信后台「应用 → 接收消息 / API 接收消息」里配置的那个 EncodingAESKey（格式完全一致）。本 starter 只负责拿到下载链接（`WxExportDataVO.url`），**文件的下载与解密不在封装范围**。
 
 ```java
-// 随机生成一个 43 位 EncodingAESKey（生成一次后固定保存，解密时复用同一把）
-String charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-SecureRandom random = new SecureRandom();
-StringBuilder sb = new StringBuilder(43);
-for (int i = 0; i < 43; i++) {
-    sb.append(charset.charAt(random.nextInt(charset.length())));
-}
-String encodingAesKey = sb.toString();
+// starter 提供 WxExportUtil.generateEncodingAesKey() 生成 43 位 key（生成一次后固定保存，解密时复用同一把）
+String encodingAesKey = WxExportUtil.generateEncodingAesKey();
 ```
 
 ## 可靠性策略
