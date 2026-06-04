@@ -13,6 +13,10 @@
 - 审批查询：按时间分段、分页、重试、限流、失败收集
 - HR 花名册查询：对接智慧人事 / 人事助手应用
 - 考勤查询：打卡记录、日报、月报、排班、异常聚合
+- 消息推送：文本 / Markdown / 文本卡片，支持撤回
+- 网页授权登录：构建授权链接、`code` 换取用户身份与敏感详情
+- 智能机器人：机器人增删改查、对话、发消息、重置会话
+- 异步批量导出：成员 / 部门 / 标签导出，提交并轮询到下载链接
 - 通用 `WxApiClient`：调用任意企业微信接口并自动注入 `access_token`
 - SLF4J 日志：初始化、重试、完成、失败
 
@@ -68,6 +72,11 @@ wx.cp.checkin.max-retry-attempts=3
 wx.cp.checkin.retry-backoff-millis=500
 wx.cp.checkin.requests-per-second=0
 wx.cp.checkin.executor-threads=8
+
+# 异步批量导出
+wx.cp.export.poll-interval-millis=2000
+wx.cp.export.poll-timeout-millis=60000
+wx.cp.export.max-poll-attempts=30
 ```
 
 说明：
@@ -85,6 +94,10 @@ wx.cp.checkin.executor-threads=8
 - `WxApprovalQueryUtil`
 - `WxCheckinQueryUtil`
 - `WxApiClient`
+- `WxMessagePushUtil`
+- `WxOauth2Util`
+- `WxIntelligentRobotUtil`
+- `WxExportUtil`
 
 配置 `wx.cp.hr.secret` 后，还会注册：
 
@@ -419,6 +432,39 @@ starter 使用 SLF4J 记录关键操作：
 - `getLocationExceptions(...)`
 - `getDeviceExceptions(...)`
 - `getAttendanceReport(...)`
+
+### `WxMessagePushUtil`
+
+- `send(WxCpMessage message)`
+- `sendText(String toUser, String content)`
+- `sendMarkdown(String toUser, String content)`
+- `sendTextCard(String toUser, String title, String description, String url, String btnTxt)`
+- `recall(String msgId)`
+
+### `WxOauth2Util`
+
+- `buildAuthorizationUrl(String redirectUri, String scope, String state)`
+- `getUserInfo(String code)`
+- `getUserDetail(String userTicket)`
+
+### `WxIntelligentRobotUtil`
+
+- `createRobot(WxCpIntelligentRobotCreateRequest req)`
+- `updateRobot(WxCpIntelligentRobotUpdateRequest req)`
+- `deleteRobot(String robotId)`
+- `getRobot(String robotId)`
+- `chat(WxCpIntelligentRobotChatRequest req)`
+- `sendMessage(WxCpIntelligentRobotSendMessageRequest req)`
+- `resetSession(String robotId, String chatType, String chatId)`
+
+### `WxExportUtil`
+
+- `exportSimpleUser(WxCpExportRequest req)`
+- `exportUser(WxCpExportRequest req)`
+- `exportDepartment(WxCpExportRequest req)`
+- `exportTagUser(WxCpExportRequest req)`
+- `getResult(String jobId)`
+- `exportAndWait(WxExportType type, WxCpExportRequest req)`
 
 ## 本地构建
 

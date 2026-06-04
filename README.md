@@ -13,6 +13,10 @@ It wraps `weixin-java-cp` with business-oriented utilities, so application code 
 - Approval queries with date segmentation, paging, retry, rate limiting, and failure collection
 - HR roster queries for the 智慧人事 / 人事助手 application
 - Attendance queries for checkin records, reports, schedules, and exception buckets
+- Message push: text / markdown / text card, with recall
+- OAuth2 web login: build the authorization URL and exchange `code` for user identity and detail
+- Intelligent robot: robot CRUD, chat, send message, and reset session
+- Async bulk export: member / department / tag export, submit and poll to the download link
 - Generic `WxApiClient` for custom WeCom APIs with automatic `access_token` injection
 - SLF4J logs for initialization, retries, completion, and failures
 
@@ -68,6 +72,11 @@ wx.cp.checkin.max-retry-attempts=3
 wx.cp.checkin.retry-backoff-millis=500
 wx.cp.checkin.requests-per-second=0
 wx.cp.checkin.executor-threads=8
+
+# Async bulk export
+wx.cp.export.poll-interval-millis=2000
+wx.cp.export.poll-timeout-millis=60000
+wx.cp.export.max-poll-attempts=30
 ```
 
 Notes:
@@ -85,6 +94,10 @@ After the dependency and minimal configuration are present, the starter register
 - `WxApprovalQueryUtil`
 - `WxCheckinQueryUtil`
 - `WxApiClient`
+- `WxMessagePushUtil`
+- `WxOauth2Util`
+- `WxIntelligentRobotUtil`
+- `WxExportUtil`
 
 When `wx.cp.hr.secret` is configured, it also registers:
 
@@ -419,6 +432,39 @@ The starter logs key operations with SLF4J:
 - `getLocationExceptions(...)`
 - `getDeviceExceptions(...)`
 - `getAttendanceReport(...)`
+
+### `WxMessagePushUtil`
+
+- `send(WxCpMessage message)`
+- `sendText(String toUser, String content)`
+- `sendMarkdown(String toUser, String content)`
+- `sendTextCard(String toUser, String title, String description, String url, String btnTxt)`
+- `recall(String msgId)`
+
+### `WxOauth2Util`
+
+- `buildAuthorizationUrl(String redirectUri, String scope, String state)`
+- `getUserInfo(String code)`
+- `getUserDetail(String userTicket)`
+
+### `WxIntelligentRobotUtil`
+
+- `createRobot(WxCpIntelligentRobotCreateRequest req)`
+- `updateRobot(WxCpIntelligentRobotUpdateRequest req)`
+- `deleteRobot(String robotId)`
+- `getRobot(String robotId)`
+- `chat(WxCpIntelligentRobotChatRequest req)`
+- `sendMessage(WxCpIntelligentRobotSendMessageRequest req)`
+- `resetSession(String robotId, String chatType, String chatId)`
+
+### `WxExportUtil`
+
+- `exportSimpleUser(WxCpExportRequest req)`
+- `exportUser(WxCpExportRequest req)`
+- `exportDepartment(WxCpExportRequest req)`
+- `exportTagUser(WxCpExportRequest req)`
+- `getResult(String jobId)`
+- `exportAndWait(WxExportType type, WxCpExportRequest req)`
 
 ## Local Build
 
