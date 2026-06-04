@@ -518,6 +518,19 @@ Methods and parameters:
   - `type`: export type enum `WxExportType` (`SIMPLE_USER` / `USER` / `DEPARTMENT` / `TAG_USER`).
   - `req`: as above.
 
+**Where `encodingAesKey` comes from**: you generate and keep it yourself — WeCom does not issue it or hand it out in the console. It is a fixed **43-character** string from `a-z` / `A-Z` / `0-9` (62 chars), i.e. the Base64 encoding of an AES key; `Base64.getDecoder().decode(encodingAesKey + "=")` yields the 32-byte (AES-256) key. WeCom encrypts the export file with it and returns an encrypted download link, which you then decrypt with the **same** key. Generate one and keep it fixed for reuse; you may also reuse the EncodingAESKey configured under "App → Receive Messages / API receive" in the WeCom console (identical format). This starter only returns the download link (`WxExportDataVO.url`); **downloading and decrypting the file are out of scope**.
+
+```java
+// Generate a 43-char EncodingAESKey once and keep it (reuse the same key to decrypt)
+String charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+SecureRandom random = new SecureRandom();
+StringBuilder sb = new StringBuilder(43);
+for (int i = 0; i < 43; i++) {
+    sb.append(charset.charAt(random.nextInt(charset.length())));
+}
+String encodingAesKey = sb.toString();
+```
+
 ## Reliability
 
 Approval, HR roster, and attendance utilities include:

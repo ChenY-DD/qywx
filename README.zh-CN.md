@@ -518,6 +518,19 @@ if (r.getStatus() != null && r.getStatus() == 2) {   // 2 = 完成
   - `type`：导出任务类型枚举 `WxExportType`（`SIMPLE_USER` / `USER` / `DEPARTMENT` / `TAG_USER`）。
   - `req`：同上。
 
+**`encodingAesKey` 怎么来**：它由**调用方自己生成并保存**，不是企业微信下发或后台「领取」的。规格：固定 **43 位**，字符取自 `a-z` / `A-Z` / `0-9`（共 62 个字符）——本质是一段 AES 密钥的 Base64 编码，`Base64.getDecoder().decode(encodingAesKey + "=")` 还原为 32 字节（AES-256）密钥。企业微信用它加密导出文件、返回加密文件的下载链接，你下载后用**同一把** key 解密。生成一次后固定保存复用即可；也可直接复用企业微信后台「应用 → 接收消息 / API 接收消息」里配置的那个 EncodingAESKey（格式完全一致）。本 starter 只负责拿到下载链接（`WxExportDataVO.url`），**文件的下载与解密不在封装范围**。
+
+```java
+// 随机生成一个 43 位 EncodingAESKey（生成一次后固定保存，解密时复用同一把）
+String charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+SecureRandom random = new SecureRandom();
+StringBuilder sb = new StringBuilder(43);
+for (int i = 0; i < 43; i++) {
+    sb.append(charset.charAt(random.nextInt(charset.length())));
+}
+String encodingAesKey = sb.toString();
+```
+
 ## 可靠性策略
 
 审批、HR 花名册、考勤工具内置：
