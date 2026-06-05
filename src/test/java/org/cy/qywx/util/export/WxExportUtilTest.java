@@ -9,6 +9,18 @@ import me.chanjar.weixin.cp.bean.export.WxCpExportResult;
 import org.cy.qywx.exception.QywxApiException;
 import org.junit.jupiter.api.Test;
 
+import javax.crypto.Cipher;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.HexFormat;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -93,5 +105,69 @@ class WxExportUtilTest {
     void generateEncodingAesKeyIsRandom() {
         assertThat(WxExportUtil.generateEncodingAesKey())
                 .isNotEqualTo(WxExportUtil.generateEncodingAesKey());
+    }
+
+    @Test
+    void decryptRoundTrip() throws Exception {
+        String key = WxExportUtil.generateEncodingAesKey();
+        byte[] plain = "{\"userid\":\"zhangsan\"}".getBytes(StandardCharsets.UTF_8);
+        assertThat(WxExportUtil.decrypt(encrypt(plain, key), key)).isEqualTo(plain);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void downloadAndDecryptReturnsPlaintextAfterVerifyingMd5() throws Exception {
+        String key = WxExportUtil.generateEncodingAesKey();
+        byte[] plain = "{\"userid\":\"zhangsan\"}".getBytes(StandardCharsets.UTF_8);
+        byte[] encrypted = encrypt(plain, key);
+
+        HttpClient httpClient = mock(HttpClient.class);
+        HttpResponse<byte[]> response = mock(HttpResponse.class);
+        when(response.statusCode()).thenReturn(200);
+        when(response.body()).thenReturn(encrypted);
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+
+        WxExportUtil util = new WxExportUtil(wxCpService, WxExportQueryOptions.defaults(), httpClient);
+        WxExportDataVO data = new WxExportDataVO();
+        data.setUrl("https://front.wxwork.qq.com/downloadobject?authkey=x");
+        data.setSize(encrypted.length);
+        data.setMd5(md5Hex(encrypted));
+
+        assertThat(util.downloadAndDecrypt(data, key)).isEqualTo(plain);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void downloadAndDecryptThrowsOnMd5Mismatch() throws Exception {
+        String key = WxExportUtil.generateEncodingAesKey();
+        byte[] encrypted = encrypt("x".getBytes(StandardCharsets.UTF_8), key);
+
+        HttpClient httpClient = mock(HttpClient.class);
+        HttpResponse<byte[]> response = mock(HttpResponse.class);
+        when(response.statusCode()).thenReturn(200);
+        when(response.body()).thenReturn(encrypted);
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+
+        WxExportUtil util = new WxExportUtil(wxCpService, WxExportQueryOptions.defaults(), httpClient);
+        WxExportDataVO data = new WxExportDataVO();
+        data.setUrl("https://front.wxwork.qq.com/downloadobject?authkey=x");
+        data.setSize(encrypted.length);
+        data.setMd5("00000000000000000000000000000000");
+
+        assertThatThrownBy(() -> util.downloadAndDecrypt(data, key))
+                .isInstanceOf(QywxApiException.class)
+                .hasMessageContaining("md5");
+    }
+
+    private static byte[] encrypt(byte[] plain, String encodingAesKey) throws Exception {
+        byte[] aesKey = Base64.getDecoder().decode(encodingAesKey + "=");
+        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(aesKey, "AES"),
+                new IvParameterSpec(Arrays.copyOf(aesKey, 16)));
+        return cipher.doFinal(plain);
+    }
+
+    private static String md5Hex(byte[] bytes) throws Exception {
+        return HexFormat.of().formatHex(MessageDigest.getInstance("MD5").digest(bytes));
     }
 }

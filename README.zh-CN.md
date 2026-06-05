@@ -32,7 +32,7 @@
 <dependency>
     <groupId>org.cy</groupId>
     <artifactId>qywx-wecom-spring-boot-starter</artifactId>
-    <version>2.0.11</version>
+    <version>2.0.12</version>
 </dependency>
 ```
 
@@ -343,6 +343,22 @@ List<WxCheckinExceptionItemVO> late = wxCheckinQueryUtil.getLatePersons(range, u
 WxAttendanceReportVO report = wxCheckinQueryUtil.getAttendanceReport(range, userIds);
 ```
 
+**一次性查全员** —— `getAllCheckinRecords` 只需传时间范围，内部自动拉取全部在职成员 userId（复用分段/分批 fan-out，可支撑大企业）：
+
+```java
+// 全部成员、最近 7 个自然日 —— 无需自己收集 userId。
+WxCheckinRecordResult all = wxCheckinQueryUtil.getAllCheckinRecords(WxDateRangeUtils.lastDays(7));
+for (WxCheckinRecordVO r : all.records()) {
+    String userId = r.getUserId();
+    // ... 其他字段
+}
+all.failures().forEach(f -> { /* 分批失败（若有） */ });
+
+// 可选：限定打卡类型（CHECKIN_TYPE_OUTSIDE / _NORMAL / _ALL）
+WxCheckinRecordResult outside = wxCheckinQueryUtil.getAllCheckinRecords(
+        WxCheckinQueryUtil.CHECKIN_TYPE_OUTSIDE, WxDateRangeUtils.lastDays(7));
+```
+
 可用异常快捷方法：
 
 - `getLatePersons`
@@ -359,7 +375,7 @@ WxAttendanceReportVO report = wxCheckinQueryUtil.getAttendanceReport(range, user
 ```java
 // 1) 文本 / Markdown / 文本卡片便捷方法（接收人为成员 userId，多个用 | 分隔，@all 发给全部）
 WxMessageSendResultVO r = wxMessagePushUtil.sendText("zhangsan|lisi", "构建完成 ✅");
-wxMessagePushUtil.sendMarkdown("zhangsan", "**发布成功**\n> 版本 v2.0.11 已上线");
+wxMessagePushUtil.sendMarkdown("zhangsan", "**发布成功**\n> 版本 v2.0.12 已上线");
 wxMessagePushUtil.sendTextCard("zhangsan",
         "服务器告警", "CPU 持续 95%，请尽快处理",
         "https://ops.example.com/alert/1", "查看详情");
@@ -493,7 +509,7 @@ wxIntelligentRobotUtil.deleteRobot(robotId);
 
 ### 异步批量导出
 
-`WxExportUtil` 注入主 `WxCpService`，封装企业微信**异步批量导出**（成员简易信息 / 成员详细信息 / 部门 / 标签成员）。提供「提交 → 拿 jobId → 查结果」的分步 API，以及一站式「提交并轮询至完成 / 超时」的 `exportAndWait`。**边界止于拿到加密文件下载链接（url / size / md5），不负责下载与解密**。轮询参数由 `wx.cp.export.*` 配置（见上文「配置」一节）。
+`WxExportUtil` 注入主 `WxCpService`，封装企业微信**异步批量导出**（成员简易信息 / 成员详细信息 / 部门 / 标签成员）。提供「提交 → 拿 jobId → 查结果」的分步 API，以及一站式「提交并轮询至完成 / 超时」的 `exportAndWait`。轮询拿到加密文件下载链接（url / size / md5）后，用 `downloadAndDecrypt(...)` 下载、校验完整性并解密还原明文。轮询参数由 `wx.cp.export.*` 配置（见上文「配置」一节）。
 
 ```java
 // EncodingAESKey 由你生成一次并固定保存（解密时复用同一把）；starter 提供生成方法
@@ -505,10 +521,12 @@ req.setEncodingAesKey(encodingAesKey); // 必填，企业微信用它加密导�
 
 // 方式一：一站式（推荐）——提交并轮询到完成；status=3（异常）或超时抛 QywxApiException
 WxExportResultVO result = wxExportUtil.exportAndWait(WxExportType.USER, req);
-for (WxExportDataVO data : result.getDataList()) {
-    String url = data.getUrl();   // 加密文件下载链接（下载与解密由调用方自行处理）
-    Integer size = data.getSize();
-    String md5 = data.getMd5();
+
+// 下载 + 校验 size/md5 + 解密每个分片还原明文（通常是 JSON）。
+// 重要：必须传【提交任务时那把】encodingAesKey，否则无法解密。
+List<byte[]> shards = wxExportUtil.downloadAndDecrypt(result, encodingAesKey);
+for (byte[] plain : shards) {
+    String json = new String(plain, StandardCharsets.UTF_8);   // data_0.json、data_1.json……
 }
 
 // 方式二：分步——自行掌控轮询节奏
@@ -532,8 +550,12 @@ if (r.getStatus() != null && r.getStatus() == 2) {   // 2 = 完成
 - `exportAndWait(WxExportType type, WxCpExportRequest req)` —— 一站式提交并轮询至完成返回；`status=3` 立即抛 `QywxApiException`，超过 `maxPollAttempts` 次或 `pollTimeoutMillis` 总时长仍未完成则抛超时异常。
   - `type`：导出任务类型枚举 `WxExportType`（`SIMPLE_USER` / `USER` / `DEPARTMENT` / `TAG_USER`）。
   - `req`：同上。
+- `downloadAndDecrypt(WxExportResultVO result, String encodingAesKey)` —— 下载 `dataList` 全部分片，校验密文 size/md5 并解密；返回 `List<byte[]>` 明文（顺序与 `dataList` 一致），`dataList` 为空时返回空列表。
+- `downloadAndDecrypt(WxExportDataVO data, String encodingAesKey)` —— 单个分片同上；返回明文 `byte[]`。
+- `decrypt(byte[] encrypted, String encodingAesKey)`（静态）—— 纯 AES-256-CBC / PKCS#7 解密（key = `Base64Decode(encodingAesKey + "=")`，IV 取 key 前 16 字节）；已持有密文字节时直接用。
+  - `encodingAesKey` 必须是**提交任务时那把** 43 位 key，否则无法解密。`size`/`md5` 校验的是**密文**（下载完整性），不是明文。
 
-**`encodingAesKey` 怎么来**：它由**调用方自己生成并保存**，不是企业微信下发或后台「领取」的。规格：固定 **43 位**，字符取自 `a-z` / `A-Z` / `0-9`（共 62 个字符）——本质是一段 AES 密钥的 Base64 编码，`Base64.getDecoder().decode(encodingAesKey + "=")` 还原为 32 字节（AES-256）密钥。企业微信用它加密导出文件、返回加密文件的下载链接，你下载后用**同一把** key 解密。生成一次后固定保存复用即可；也可直接复用企业微信后台「应用 → 接收消息 / API 接收消息」里配置的那个 EncodingAESKey（格式完全一致）。本 starter 只负责拿到下载链接（`WxExportDataVO.url`），**文件的下载与解密不在封装范围**。
+**`encodingAesKey` 怎么来**：它由**调用方自己生成并保存**，不是企业微信下发或后台「领取」的。规格：固定 **43 位**，字符取自 `a-z` / `A-Z` / `0-9`（共 62 个字符）——本质是一段 AES 密钥的 Base64 编码，`Base64.getDecoder().decode(encodingAesKey + "=")` 还原为 32 字节（AES-256）密钥。企业微信用它加密导出文件、返回加密文件的下载链接，你下载后用**同一把** key 解密。生成一次后固定保存复用即可；也可直接复用企业微信后台「应用 → 接收消息 / API 接收消息」里配置的那个 EncodingAESKey（格式完全一致）。把这把 key 传给 `downloadAndDecrypt(...)`，starter 会下载链接、校验 size/md5 并解密还原明文。
 
 ```java
 // starter 提供 WxExportUtil.generateEncodingAesKey() 生成 43 位 key（生成一次后固定保存，解密时复用同一把）
@@ -670,6 +692,10 @@ starter 使用 SLF4J 记录关键操作：
 - `exportTagUser(WxCpExportRequest req)`
 - `getResult(String jobId)`
 - `exportAndWait(WxExportType type, WxCpExportRequest req)`
+- `downloadAndDecrypt(WxExportResultVO result, String encodingAesKey)`
+- `downloadAndDecrypt(WxExportDataVO data, String encodingAesKey)`
+- `decrypt(byte[] encrypted, String encodingAesKey)`（静态）
+- `generateEncodingAesKey()`（静态）
 
 ## 本地构建
 

@@ -32,7 +32,7 @@ It wraps `weixin-java-cp` with business-oriented utilities, so application code 
 <dependency>
     <groupId>org.cy</groupId>
     <artifactId>qywx-wecom-spring-boot-starter</artifactId>
-    <version>2.0.11</version>
+    <version>2.0.12</version>
 </dependency>
 ```
 
@@ -343,6 +343,22 @@ List<WxCheckinExceptionItemVO> late = wxCheckinQueryUtil.getLatePersons(range, u
 WxAttendanceReportVO report = wxCheckinQueryUtil.getAttendanceReport(range, userIds);
 ```
 
+**Query all members at once** — `getAllCheckinRecords` needs only a date range and fetches every active user id internally (it reuses the segment/batch fan-out, so it scales to large orgs):
+
+```java
+// All members, last 7 whole days — no need to collect userIds yourself.
+WxCheckinRecordResult all = wxCheckinQueryUtil.getAllCheckinRecords(WxDateRangeUtils.lastDays(7));
+for (WxCheckinRecordVO r : all.records()) {
+    String userId = r.getUserId();
+    // ... other fields
+}
+all.failures().forEach(f -> { /* per-batch failures, if any */ });
+
+// Optional: restrict the checkin type (CHECKIN_TYPE_OUTSIDE / _NORMAL / _ALL)
+WxCheckinRecordResult outside = wxCheckinQueryUtil.getAllCheckinRecords(
+        WxCheckinQueryUtil.CHECKIN_TYPE_OUTSIDE, WxDateRangeUtils.lastDays(7));
+```
+
 Available exception helpers:
 
 - `getLatePersons`
@@ -359,7 +375,7 @@ Available exception helpers:
 ```java
 // 1) Text / Markdown / TextCard helpers (recipients are member userIds, '|'-separated, '@all' for everyone)
 WxMessageSendResultVO r = wxMessagePushUtil.sendText("zhangsan|lisi", "Build finished ✅");
-wxMessagePushUtil.sendMarkdown("zhangsan", "**Release succeeded**\n> v2.0.11 is live");
+wxMessagePushUtil.sendMarkdown("zhangsan", "**Release succeeded**\n> v2.0.12 is live");
 wxMessagePushUtil.sendTextCard("zhangsan",
         "Server alert", "CPU stuck at 95%, please act",
         "https://ops.example.com/alert/1", "Details");
@@ -493,7 +509,7 @@ Methods and parameters:
 
 ### Async Export
 
-`WxExportUtil` injects the primary `WxCpService` and wraps WeCom **async bulk export** (simple user / detailed user / department / tag members). It offers a stepwise API (submit → get jobId → poll result) and the one-shot `exportAndWait` (submit and poll until finished / timeout). **It stops at the encrypted download link (url / size / md5) and does not download or decrypt.** Polling is configured via `wx.cp.export.*` (see Configuration above).
+`WxExportUtil` injects the primary `WxCpService` and wraps WeCom **async bulk export** (simple user / detailed user / department / tag members). It offers a stepwise API (submit → get jobId → poll result) and the one-shot `exportAndWait` (submit and poll until finished / timeout). After polling returns the encrypted download link (url / size / md5), use `downloadAndDecrypt(...)` to download, verify integrity, and decrypt the file back to plaintext. Polling is configured via `wx.cp.export.*` (see Configuration above).
 
 ```java
 // Generate the EncodingAESKey once and keep it (reuse the same key to decrypt); the starter provides a helper
@@ -505,10 +521,12 @@ req.setEncodingAesKey(encodingAesKey); // required; WeCom uses it to encrypt the
 
 // Option A: one-shot (recommended) — submit and poll until finished; status=3 (failed) or timeout throws QywxApiException
 WxExportResultVO result = wxExportUtil.exportAndWait(WxExportType.USER, req);
-for (WxExportDataVO data : result.getDataList()) {
-    String url = data.getUrl();   // encrypted download link (download & decryption are up to you)
-    Integer size = data.getSize();
-    String md5 = data.getMd5();
+
+// Download + verify size/md5 + decrypt every shard back to plaintext (usually JSON).
+// IMPORTANT: pass the SAME encodingAesKey used at submit time, or the file cannot be decrypted.
+List<byte[]> shards = wxExportUtil.downloadAndDecrypt(result, encodingAesKey);
+for (byte[] plain : shards) {
+    String json = new String(plain, StandardCharsets.UTF_8);   // data_0.json, data_1.json, ...
 }
 
 // Option B: stepwise — control the polling cadence yourself
@@ -532,8 +550,12 @@ Methods and parameters:
 - `exportAndWait(WxExportType type, WxCpExportRequest req)` —— Submit and poll until finished; throws `QywxApiException` immediately on `status=3`, or a timeout exception after `maxPollAttempts` polls or `pollTimeoutMillis` total.
   - `type`: export type enum `WxExportType` (`SIMPLE_USER` / `USER` / `DEPARTMENT` / `TAG_USER`).
   - `req`: as above.
+- `downloadAndDecrypt(WxExportResultVO result, String encodingAesKey)` —— Download every shard in `dataList`, verify size/md5 (of the ciphertext) and decrypt; returns `List<byte[]>` of plaintext (order matches `dataList`). Empty list when `dataList` is empty.
+- `downloadAndDecrypt(WxExportDataVO data, String encodingAesKey)` —— Same for a single shard; returns the plaintext `byte[]`.
+- `decrypt(byte[] encrypted, String encodingAesKey)` (static) —— Pure AES-256-CBC / PKCS#7 decryption (key = `Base64Decode(encodingAesKey + "=")`, IV = first 16 bytes); use when you already hold the ciphertext.
+  - `encodingAesKey` must be the **same** 43-char key used at submit time, otherwise the file cannot be decrypted. `size`/`md5` are verified against the **ciphertext** (download integrity), not the plaintext.
 
-**Where `encodingAesKey` comes from**: you generate and keep it yourself — WeCom does not issue it or hand it out in the console. It is a fixed **43-character** string from `a-z` / `A-Z` / `0-9` (62 chars), i.e. the Base64 encoding of an AES key; `Base64.getDecoder().decode(encodingAesKey + "=")` yields the 32-byte (AES-256) key. WeCom encrypts the export file with it and returns an encrypted download link, which you then decrypt with the **same** key. Generate one and keep it fixed for reuse; you may also reuse the EncodingAESKey configured under "App → Receive Messages / API receive" in the WeCom console (identical format). This starter only returns the download link (`WxExportDataVO.url`); **downloading and decrypting the file are out of scope**.
+**Where `encodingAesKey` comes from**: you generate and keep it yourself — WeCom does not issue it or hand it out in the console. It is a fixed **43-character** string from `a-z` / `A-Z` / `0-9` (62 chars), i.e. the Base64 encoding of an AES key; `Base64.getDecoder().decode(encodingAesKey + "=")` yields the 32-byte (AES-256) key. WeCom encrypts the export file with it and returns an encrypted download link, which you then decrypt with the **same** key. Generate one and keep it fixed for reuse; you may also reuse the EncodingAESKey configured under "App → Receive Messages / API receive" in the WeCom console (identical format). Pass that same key to `downloadAndDecrypt(...)` and the starter downloads the link, verifies size/md5, and decrypts the file back to plaintext.
 
 ```java
 // The starter provides WxExportUtil.generateEncodingAesKey() to create a 43-char key (generate once, keep it, reuse to decrypt)
@@ -670,6 +692,10 @@ The starter logs key operations with SLF4J:
 - `exportTagUser(WxCpExportRequest req)`
 - `getResult(String jobId)`
 - `exportAndWait(WxExportType type, WxCpExportRequest req)`
+- `downloadAndDecrypt(WxExportResultVO result, String encodingAesKey)`
+- `downloadAndDecrypt(WxExportDataVO data, String encodingAesKey)`
+- `decrypt(byte[] encrypted, String encodingAesKey)` (static)
+- `generateEncodingAesKey()` (static)
 
 ## Local Build
 
