@@ -32,7 +32,7 @@ It wraps `weixin-java-cp` with business-oriented utilities, so application code 
 <dependency>
     <groupId>org.cy</groupId>
     <artifactId>qywx-wecom-spring-boot-starter</artifactId>
-    <version>2.0.12</version>
+    <version>2.0.13</version>
 </dependency>
 ```
 
@@ -173,6 +173,10 @@ List<WxApprovalDetailVO> details = wxApprovalQueryUtil.getApprovalDetails(range)
 WxApprovalDetailQueryResult result = wxApprovalQueryUtil.queryApprovalDetails(range);
 Map<String, List<WxApprovalDetailVO>> byTemplate = result.groupByTemplateId();
 List<WxApprovalDetailFetchFailure> failures = result.failures();
+
+// Fetch details directly by approval numbers (skips the date-range listing)
+List<WxApprovalDetailVO> detailsBySpNos = wxApprovalQueryUtil.getApprovalDetails(spNos);
+WxApprovalDetailQueryResult resultBySpNos = wxApprovalQueryUtil.queryApprovalDetailsBySpNos(spNos);
 ```
 
 Template helpers:
@@ -607,6 +611,7 @@ The starter logs key operations with SLF4J:
 - `getApprovalDetailsGroupByTemplateId(...)`
 - `queryApprovalDetails(...)`
 - `queryApprovalDetailsByTemplateId(...)`
+- `queryApprovalDetailsBySpNos(Collection<String> spNos)`
 - `getTemplates(...)`
 - `getTemplateMap(...)`
 - `getTemplateDetail(String templateId)`

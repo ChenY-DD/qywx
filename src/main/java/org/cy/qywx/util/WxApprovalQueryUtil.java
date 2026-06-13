@@ -380,6 +380,20 @@ public class WxApprovalQueryUtil {
     }
 
     /**
+     * 获取审批详情列表by审批单号列表。
+     *
+     * @param spNos 审批单号集合
+     * @return 审批详情列表by审批单号列表
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    public List<WxApprovalDetailVO> getApprovalDetails(Collection<String> spNos) throws WxErrorException {
+        return queryApprovalDetailsBySpNos(spNos).details();
+    }
+
+    /**
      * 获取审批详情列表by模板ID。
      *
      * @param templateId 审批模板 ID
@@ -475,6 +489,25 @@ public class WxApprovalQueryUtil {
     }
 
     /**
+     * 查询审批详情列表by审批单号列表。
+     *
+     * 跳过时间范围查询，直接按传入的审批单号并发拉取详情；
+     * 单号会做 trim、去重处理，拉取失败的单号收集进 {@link WxApprovalDetailQueryResult#failures()}。
+     *
+     * @param spNos 审批单号集合
+     * @return 审批详情查询结果
+     * @throws WxErrorException 企业微信 SDK 调用失败时抛出
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    public WxApprovalDetailQueryResult queryApprovalDetailsBySpNos(Collection<String> spNos) throws WxErrorException {
+        List<String> normalizedSpNos = normalizeSpNos(spNos);
+        log.info("Fetching details for {} approval spNos", normalizedSpNos.size());
+        return fetchApprovalDetails(normalizedSpNos);
+    }
+
+    /**
      * 获取审批审批单号列表。
      *
      * @param startTime 查询开始时间
@@ -567,7 +600,6 @@ public class WxApprovalQueryUtil {
             List<WxCpApprovalInfoQueryFilter> filters
     ) throws WxErrorException {
         log.debug("Starting approval details query: startTime={}, endTime={}, filters={}", startTime, endTime, filters);
-        long queryStartTime = System.currentTimeMillis();
 
         List<String> spNos = getApprovalSpNos(startTime, endTime, filters);
         if (spNos.isEmpty()) {
@@ -576,6 +608,21 @@ public class WxApprovalQueryUtil {
         }
 
         log.info("Fetching details for {} approval spNos", spNos.size());
+        return fetchApprovalDetails(spNos);
+    }
+
+    /**
+     * 并发拉取审批详情列表。
+     *
+     * @param spNos 审批单号列表
+     * @return 审批详情查询结果
+     *
+     * @author cy
+     * Copyright (c) CY
+     */
+    private WxApprovalDetailQueryResult fetchApprovalDetails(List<String> spNos) {
+        long queryStartTime = System.currentTimeMillis();
+
         SimpleRateLimiter rateLimiter = new SimpleRateLimiter(options.requestsPerSecond());
         List<CompletableFuture<DetailQueryOutcome>> futures = spNos.stream()
                 .map(spNo -> CompletableFuture.supplyAsync(

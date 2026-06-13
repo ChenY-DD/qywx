@@ -27,6 +27,7 @@ import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -196,6 +197,65 @@ class WxApprovalQueryUtilTest {
         );
 
         assertThrows(IllegalArgumentException.class, () -> util.getApprovalSpNos(new Date(1000), new Date(1000)));
+    }
+
+    @Test
+    void shouldQueryApprovalDetailsBySpNosWithoutDateRangeQuery() throws Exception {
+        WxCpService wxCpService = mock(WxCpService.class);
+
+        WxApprovalQueryUtil util = spy(new WxApprovalQueryUtil(
+                wxCpService,
+                DIRECT_EXECUTOR,
+                new WxApprovalQueryOptions(29, 100, 3, 0, 0)
+        ));
+        doReturn(toRawJson("sp-1", "temp-1")).when(util).fetchRawApprovalDetailJson("sp-1");
+        doReturn(toRawJson("sp-2", "temp-2")).when(util).fetchRawApprovalDetailJson("sp-2");
+
+        List<WxApprovalDetailVO> details = util.getApprovalDetails(List.of("sp-1", " sp-2 ", "sp-1"));
+
+        assertEquals(2, details.size());
+        assertEquals("sp-1", details.get(0).getSpNo());
+        assertEquals("sp-2", details.get(1).getSpNo());
+        verify(util, times(1)).fetchRawApprovalDetailJson("sp-1");
+        verify(util, times(1)).fetchRawApprovalDetailJson("sp-2");
+        verify(wxCpService, never()).getOaService();
+    }
+
+    @Test
+    void shouldCollectFailuresWhenDetailQueryBySpNosFails() throws Exception {
+        WxCpService wxCpService = mock(WxCpService.class);
+
+        WxApprovalQueryUtil util = spy(new WxApprovalQueryUtil(
+                wxCpService,
+                DIRECT_EXECUTOR,
+                new WxApprovalQueryOptions(29, 100, 3, 0, 0)
+        ));
+        doReturn(toRawJson("sp-ok", "temp-1")).when(util).fetchRawApprovalDetailJson("sp-ok");
+        doThrow(new RuntimeException("mock boom")).when(util).fetchRawApprovalDetailJson("sp-fail");
+
+        WxApprovalDetailQueryResult result = util.queryApprovalDetailsBySpNos(List.of("sp-ok", "sp-fail"));
+
+        assertEquals(1, result.details().size());
+        assertEquals("sp-ok", result.details().get(0).getSpNo());
+        assertEquals(1, result.failures().size());
+        assertEquals("sp-fail", result.failures().get(0).spNo());
+        assertEquals(3, result.failures().get(0).attempts());
+        verify(util, times(1)).fetchRawApprovalDetailJson("sp-ok");
+        verify(util, times(3)).fetchRawApprovalDetailJson("sp-fail");
+    }
+
+    @Test
+    void shouldThrowWhenSpNosIsNullOrEmpty() {
+        WxCpService wxCpService = mock(WxCpService.class);
+        WxApprovalQueryUtil util = new WxApprovalQueryUtil(
+                wxCpService,
+                DIRECT_EXECUTOR,
+                new WxApprovalQueryOptions(29, 100, 3, 0, 0)
+        );
+
+        assertThrows(IllegalArgumentException.class, () -> util.queryApprovalDetailsBySpNos(null));
+        assertThrows(IllegalArgumentException.class, () -> util.queryApprovalDetailsBySpNos(List.of()));
+        assertThrows(IllegalArgumentException.class, () -> util.getApprovalDetails(List.of("  ")));
     }
 
     private String toRawJson(String spNo, String templateId) {
